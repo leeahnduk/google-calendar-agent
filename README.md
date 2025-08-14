@@ -75,8 +75,17 @@ cp .env.example .env
 
 ### Configuration
 
-Edit `.env` file with your settings:
+**🔒 Security First**: Never commit sensitive credentials!
 
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit .env with your actual values (NEVER commit this file!)
+# The .env file is protected by .gitignore
+```
+
+Required settings in `.env`:
 ```bash
 # Google Cloud Configuration
 GOOGLE_CLOUD_PROJECT=your-project-id
@@ -84,7 +93,7 @@ GOOGLE_CLOUD_PROJECT_NUMBER=your-project-number
 GOOGLE_CLOUD_LOCATION=us-central1
 STAGING_BUCKET=gs://your-staging-bucket
 
-# OAuth Credentials
+# OAuth Credentials (from Google Cloud Console)
 CLIENT_ID=your-oauth-client-id
 CLIENT_SECRET=your-oauth-client-secret
 
@@ -92,6 +101,8 @@ CLIENT_SECRET=your-oauth-client-secret
 AGENT_DISPLAY_NAME=Meeting_Prep_Agent
 AUTH_ID=meeting-prep-auth
 ```
+
+**⚠️ Security Note**: The `.env` file is automatically excluded from version control. See [SECURITY.md](SECURITY.md) for detailed security guidelines.
 
 ### Deployment
 
@@ -253,6 +264,15 @@ https://www.googleapis.com/auth/userinfo.email
 - **Content limits**: Document content is limited to 3000 characters
 - **No data storage**: Agent doesn't store or cache user data
 - **Secure deployment**: Runs in Google Cloud's secure environment
+- **Credential Protection**: Comprehensive .gitignore prevents credential leaks
+- **Security Guidelines**: See [SECURITY.md](SECURITY.md) for detailed security practices
+
+### Required OAuth Scopes (Minimal Access)
+```
+https://www.googleapis.com/auth/calendar.readonly
+https://www.googleapis.com/auth/drive.readonly
+https://www.googleapis.com/auth/userinfo.email
+```
 
 ## 📈 Performance
 
@@ -298,6 +318,12 @@ https://www.googleapis.com/auth/userinfo.email
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🔒 Security
+
+Security is a top priority. Please review our [Security Guidelines](SECURITY.md) before contributing or deploying. 
+
+**Never commit sensitive credentials** - they are protected by our comprehensive `.gitignore`.
 
 ## 🙏 Acknowledgments
 
