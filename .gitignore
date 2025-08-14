@@ -1,0 +1,23 @@
+# IntelliJ-specific files
+.idea/
+*.iml
+scratch.py
+.env
+agentspace_scripts/
+jt_agentspace_scripts/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Virtual environment
+# Exclude the virtual environment directory, assuming it's named 'venv'
+venv/
+
+# Exclude specific credential files in the base directory
+credentials.json
+token.json
+
+# Operating system files
+.DS_Store # macOS
+Thumbs.db # Windows

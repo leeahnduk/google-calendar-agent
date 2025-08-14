@@ -1,0 +1,8 @@
+fastapi==0.115.12
+google_api_python_client==2.169.0
+google-adk==0.5.0
+protobuf==6.31.0
+python-dotenv==1.1.0
+Requests==2.32.3
+vertexai==1.43.0
+google-cloud-aiplatform[agent_engines, adk]==1.91.0

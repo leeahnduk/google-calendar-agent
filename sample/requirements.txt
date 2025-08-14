@@ -1,0 +1,49 @@
+# Core ADK and Google Cloud dependencies
+google-adk
+google-cloud-aiplatform
+google-cloud-storage
+google-cloud-texttospeech
+google-generativeai>=0.8.0  # Updated for newer GenAI SDK with edit_image support
+google-genai  # New Google GenAI SDK for Imagen 3 features
+google-api-python-client
+google-auth-oauthlib
+
+# Core Python packages
+requests
+python-dotenv
+pillow
+numpy
+
+# Image processing and computer vision
+opencv-python
+matplotlib
+
+# Data processing
+pandas
+tqdm
+
+# Document and media processing
+jinja2
+fpdf2
+moviepy
+pydub
+ffmpeg-python  # Note: requires system FFmpeg installation
+
+# LangChain for RAG functionality (if needed)
+langchain
+langchain-community
+langchain-google-vertexai
+faiss-cpu
+
+# Web framework dependencies (optional - for API deployment)
+fastapi
+uvicorn[standard]
+Flask>=2.3.0
+Werkzeug>=2.3.0
+asgiref>=3.6.0
+
+# System monitoring
+psutil==5.9.5
+
+# AI/ML utilities
+litellm==1.66.3
