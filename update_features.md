@@ -225,6 +225,12 @@ def prepare_meeting_brief(tool_context: ToolContext):
 
 ## 🚀 Latest Deployment - August 15, 2025
 
+**🤖 AI Model Upgrade - Gemini 2.5 Flash (06:33:57 UTC):**
+- **Model Upgrade:** Updated from Gemini 2.0 Flash to Gemini 2.5 Flash
+- **Enhanced Capabilities:** Superior AI analysis across all features
+- **Performance Boost:** Improved context understanding and response quality
+- **Deployment Status:** ✅ Successfully deployed and verified
+
 **✅ Successfully Deployed PRD-Compliant Features:**
 
 ### 📚 Historical Context Feature
@@ -261,4 +267,6 @@ Refer to the updated `Testplan.md` for comprehensive testing scenarios for the n
 
 *Last updated: 2025-08-15*
 *Agent Resource: projects/777331773170/locations/us-central1/reasoningEngines/6897957720666669056*
-*Deployment Status: ✅ PRD-Compliant Production Ready*
+*Latest Deployment: 2025-08-15 06:33:57 UTC*
+*AI Model: Gemini 2.5 Flash (Latest)*
+*Deployment Status: ✅ PRD-Compliant Production Ready with Enhanced AI*
