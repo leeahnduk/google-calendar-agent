@@ -190,7 +190,7 @@ def prepare_meeting_brief(tool_context: ToolContext):
             
             # Initialize Vertex AI and Gemini
             vertexai.init(project=google_cloud_project, location=google_cloud_location)
-            model = GenerativeModel("gemini-2.0-flash-exp")
+            model = GenerativeModel("gemini-2.5-flash")
             
             # Prepare attachment content for analysis
             attachment_info = ""
@@ -317,7 +317,7 @@ No recent messages found in channels related to "{meeting_title}".
             
             # Analyze messages with AI for relevance
             vertexai.init(project=google_cloud_project, location=google_cloud_location)
-            model = GenerativeModel("gemini-2.0-flash-exp")
+            model = GenerativeModel("gemini-2.5-flash")
             
             messages_text = ""
             for msg in messages[:10]:  # Limit to most recent 10 messages
@@ -368,7 +368,7 @@ Unable to fetch Slack context: {str(e)}
         try:
             # Initialize Vertex AI and Gemini
             vertexai.init(project=google_cloud_project, location=google_cloud_location)
-            model = GenerativeModel("gemini-2.0-flash-exp")
+            model = GenerativeModel("gemini-2.5-flash")
             
             research_prompt = f"""
 Analyze this upcoming meeting and provide helpful context and insights:

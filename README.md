@@ -34,12 +34,12 @@ An intelligent AI agent that automatically prepares comprehensive meeting briefs
 ### 💬 **Slack Integration** 
 - **Smart Channel Detection**: Automatically finds relevant Slack channels based on meeting titles
 - **Message Analysis**: Scans recent discussions (last 7 days) for meeting context
-- **AI-Powered Relevance**: Uses Gemini to analyze and summarize Slack conversations
+- **AI-Powered Relevance**: Uses Gemini 2.5 Flash to analyze and summarize Slack conversations
 - **Direct Links**: Provides links to relevant Slack messages and threads
 - **Channel Suggestions**: Recommends channels to check manually when auto-detection fails
 
 ### 🧠 **AI-Powered Analysis**
-- **Gemini 2.0 Flash Integration**: Advanced AI analysis of meeting context
+- **Gemini 2.5 Flash Integration**: Latest AI model for superior meeting context analysis
 - **Attachment Intelligence**: AI analyzes document content and provides:
   - Document summaries
   - Key discussion points
@@ -264,7 +264,7 @@ python agents/meeting_prep_agent.py
 - Plan next sprint features and priorities
 - Address performance optimization opportunities
 
-## 🧠 AI Research & Insights
+## 🧠 AI Research & Insights (Powered by Gemini 2.5 Flash)
 
 **Key Topics**: This appears to be a recurring development team sync focusing on sprint progress...
 
@@ -272,6 +272,8 @@ python agents/meeting_prep_agent.py
 - Review sprint metrics and completion rates
 - Prepare updates on individual contributions
 - Consider blockers and dependencies for next sprint
+
+**Enhanced AI Analysis**: Leveraging Google's latest Gemini 2.5 Flash model for superior context understanding and more accurate insights.
 ```
 
 ## 🏗️ Architecture
@@ -343,7 +345,7 @@ print(f'Last updated: {agents[0].update_time}')
 
 ### AI/ML Services
 - **Vertex AI**: Google Cloud's ML platform
-- **Gemini 2.0 Flash**: Advanced language model for analysis
+- **Gemini 2.5 Flash**: Latest advanced language model for enhanced analysis and insights
 
 ### Required OAuth Scopes
 ```
