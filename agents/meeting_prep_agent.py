@@ -226,6 +226,143 @@ Format your response in clear markdown sections. Be specific and actionable in y
         except Exception as e:
             return f"Attachment analysis unavailable: {str(e)}"
     
+    def _get_historical_context(calendar_service, event_context: EventContext) -> str:
+        """Get historical context for recurring meetings"""
+        try:
+            if not event_context.recurring_event_id:
+                return "This is not a recurring meeting - no historical context available."
+            
+            # Search for past instances of this recurring meeting
+            from datetime import datetime, timedelta, timezone
+            
+            # Look back 60 days for previous instances
+            now = datetime.now(timezone.utc)
+            time_min = (now - timedelta(days=60)).isoformat()
+            time_max = now.isoformat()
+            
+            events_result = calendar_service.events().list(
+                calendarId="primary",
+                timeMin=time_min,
+                timeMax=time_max,
+                singleEvents=True,
+                orderBy="startTime"
+            ).execute()
+            
+            # Find previous instances of this recurring meeting
+            past_instances = []
+            for item in events_result.get("items", []):
+                if (item.get("recurringEventId") == event_context.recurring_event_id and 
+                    item.get("id") != event_context.id):
+                    past_instances.append(item)
+            
+            if not past_instances:
+                return "No previous instances of this recurring meeting found in the last 60 days."
+            
+            # Get the most recent instance
+            most_recent = past_instances[-1] if past_instances else None
+            if not most_recent:
+                return "No previous instances found."
+            
+            recent_date = most_recent.get("start", {}).get("dateTime", "Unknown date")
+            recent_description = most_recent.get("description", "No description available")
+            
+            historical_summary = f"""
+## 📚 Historical Context (Recurring Meeting)
+
+**Previous Instance**: {recent_date}
+**Previous Description**: {recent_description[:500]}{'...' if len(recent_description) > 500 else ''}
+
+**Meeting History**: This meeting has occurred {len(past_instances)} time(s) in the last 60 days.
+
+*Note: For detailed notes from previous sessions, check your meeting notes repository or shared documents.*
+"""
+            return historical_summary
+            
+        except Exception as e:
+            return f"Historical context unavailable: {str(e)}"
+    
+    def _get_slack_context(meeting_title: str) -> str:
+        """Get Slack channel context based on meeting title"""
+        try:
+            # Import Slack fetcher
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            from tools.slack_fetcher import fetch_slack_messages
+            
+            # Get messages from relevant Slack channels
+            messages = fetch_slack_messages(meeting_title, lookback_days=7, max_messages=20)
+            
+            if not messages:
+                # Try to infer channel name from meeting title
+                potential_channels = []
+                title_words = meeting_title.lower().split()
+                
+                # Common patterns for channel naming
+                for word in title_words:
+                    if len(word) > 3:  # Skip short words
+                        potential_channels.append(f"#{word}")
+                        potential_channels.append(f"#{word.replace(' ', '-')}")
+                
+                return f"""
+## 💬 Slack Context
+
+No recent messages found in channels related to "{meeting_title}".
+
+**Suggested channels to check manually:**
+{chr(10).join([f"- {channel}" for channel in potential_channels[:3]])}
+
+*Note: Slack integration requires proper bot token configuration.*
+"""
+            
+            # Analyze messages with AI for relevance
+            vertexai.init(project=google_cloud_project, location=google_cloud_location)
+            model = GenerativeModel("gemini-2.0-flash-exp")
+            
+            messages_text = ""
+            for msg in messages[:10]:  # Limit to most recent 10 messages
+                messages_text += f"**@{msg.user}**: {msg.text}\n"
+            
+            slack_analysis_prompt = f"""
+Analyze these recent Slack messages from the channel related to the meeting "{meeting_title}":
+
+{messages_text}
+
+Please provide:
+1. **Key Discussion Points**: Main topics being discussed
+2. **Recent Updates**: Any important updates or decisions
+3. **Action Items**: Tasks or follow-ups mentioned
+4. **Relevance**: How these discussions relate to the upcoming meeting
+
+Keep the response concise and focused on meeting preparation.
+"""
+            
+            response = model.generate_content(slack_analysis_prompt)
+            
+            return f"""
+## 💬 Slack Context
+
+**Channel**: {messages[0].channel if messages else "Unknown"}
+**Recent Messages**: {len(messages)} messages in the last 7 days
+
+{response.text}
+
+**Direct Links**:
+{chr(10).join([f"- [Message from @{msg.user}]({msg.permalink})" for msg in messages[:3]])}
+"""
+            
+        except Exception as e:
+            return f"""
+## 💬 Slack Context
+
+Unable to fetch Slack context: {str(e)}
+
+*Note: Slack integration requires:*
+- Valid SLACK_BOT_TOKEN in environment variables
+- Bot permissions to read channels
+- Channel naming that matches meeting title patterns
+"""
+    
     def _research_with_gemini(meeting_title: str, description: str, attendees: List[str]) -> str:
         """Use Gemini to research meeting context and provide insights"""
         try:
@@ -315,10 +452,12 @@ Keep the response concise but informative, formatted in markdown.
             doc = _get_drive_document_content(drive_service, file_id)
             drive_files.append(doc)
         
-        # Get AI research and attachment analysis
+        # Get comprehensive analysis including historical and Slack context
         attendee_emails = [att.email for att in attendees if att.email]
         ai_insights = _research_with_gemini(event_context.summary, event_context.description or "", attendee_emails)
         attachment_analysis = _analyze_attachments_with_gemini(drive_files, event_context.summary)
+        historical_context = _get_historical_context(calendar_service, event_context)
+        slack_context = _get_slack_context(event_context.summary)
         
         # Build enhanced meeting brief
         attachments_section = ""
@@ -349,6 +488,10 @@ Keep the response concise but informative, formatted in markdown.
 **🔗 Meeting Link:** [Join Meeting]({event_context.html_link})
 {attachments_section}
 
+{historical_context}
+
+{slack_context}
+
 ## 📋 Attachment Analysis
 
 {attachment_analysis}
@@ -358,7 +501,7 @@ Keep the response concise but informative, formatted in markdown.
 {ai_insights}
 
 ---
-*📊 Brief generated automatically by Meeting Prep Agent with AI analysis*
+*📊 Brief generated automatically by Meeting Prep Agent with comprehensive AI analysis*
 """
         
         return {"panel_markdown": markdown}

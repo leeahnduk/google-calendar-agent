@@ -11,7 +11,8 @@ An intelligent AI agent that automatically prepares comprehensive meeting briefs
 ### 📅 **Smart Calendar Integration**
 - Automatically fetches your next upcoming meeting from Google Calendar
 - Extracts meeting details: title, time, attendees, location, description
-- Processes recurring events and meeting links
+- **Historical Context**: For recurring meetings, finds and analyzes past instances
+- **Past Meeting Analysis**: Links to previous meeting notes and summaries
 
 ### 📎 **Advanced Attachment Processing** 
 - **Google Drive Integration**: Automatically detects and extracts content from:
@@ -23,6 +24,20 @@ An intelligent AI agent that automatically prepares comprehensive meeting briefs
 - **Smart URL Detection**: Finds Drive links in meeting descriptions
 - **Content Preview**: Shows relevant excerpts from attached documents
 
+### 📚 **Historical Context & Meeting Memory**
+- **Recurring Meeting Support**: Automatically detects recurring meetings
+- **Historical Analysis**: Finds and references past meeting instances
+- **Past Notes Integration**: Links to previous meeting notes and documents
+- **Timeline Tracking**: Shows meeting history over the last 60 days
+- **Context Continuity**: Maintains context across recurring meeting series
+
+### 💬 **Slack Integration** 
+- **Smart Channel Detection**: Automatically finds relevant Slack channels based on meeting titles
+- **Message Analysis**: Scans recent discussions (last 7 days) for meeting context
+- **AI-Powered Relevance**: Uses Gemini to analyze and summarize Slack conversations
+- **Direct Links**: Provides links to relevant Slack messages and threads
+- **Channel Suggestions**: Recommends channels to check manually when auto-detection fails
+
 ### 🧠 **AI-Powered Analysis**
 - **Gemini 2.0 Flash Integration**: Advanced AI analysis of meeting context
 - **Attachment Intelligence**: AI analyzes document content and provides:
@@ -32,12 +47,16 @@ An intelligent AI agent that automatically prepares comprehensive meeting briefs
   - Preparation recommendations
   - Relevant questions to consider
 - **Meeting Context Research**: AI provides background insights and preparation guidance
+- **Slack Integration**: Scans relevant Slack channels for recent discussions
+- **Historical Analysis**: AI analyzes past meeting instances for context and continuity
 
 ### 📋 **Enhanced Meeting Briefs**
 - **Professional Formatting**: Clean markdown with emojis and structured sections
-- **Comprehensive Output**: Includes all meeting details, attachment analysis, and AI insights
+- **Comprehensive Output**: Includes meeting details, historical context, Slack discussions, attachment analysis, and AI insights
+- **Historical Context**: Past meeting summaries and action items for recurring meetings
+- **Slack Context**: Recent relevant discussions from related channels
 - **Actionable Content**: Focus on preparation and discussion points
-- **One-Click Access**: Direct links to meeting and all attachments
+- **One-Click Access**: Direct links to meeting, attachments, and Slack messages
 
 ## 🚀 Quick Start
 
@@ -70,7 +89,7 @@ pip install -r requirements.txt
 4. **Configure environment:**
 ```bash
 cp .env.example .env
-# Edit .env with your Google Cloud and OAuth settings
+# Edit .env with your Google Cloud, OAuth, and Slack settings
 ```
 
 ### Configuration
@@ -100,9 +119,58 @@ CLIENT_SECRET=your-oauth-client-secret
 # Agent Configuration
 AGENT_DISPLAY_NAME=Meeting_Prep_Agent
 AUTH_ID=meeting-prep-auth
+
+# Optional: Slack Integration
+SLACK_BOT_TOKEN=xoxb-your-slack-bot-token
+SLACK_SIGNING_SECRET=your-slack-signing-secret
 ```
 
 **⚠️ Security Note**: The `.env` file is automatically excluded from version control. See [SECURITY.md](SECURITY.md) for detailed security guidelines.
+
+### 💬 Slack Integration Setup (Optional)
+
+To enable Slack integration for enhanced meeting context:
+
+#### Step 1: Create Slack App
+
+1. **Visit Slack API**: https://api.slack.com/apps
+2. **Create New App**: Choose "From scratch"
+3. **App Name**: "Meeting Prep Agent"
+4. **Workspace**: Select your workspace
+
+#### Step 2: Configure Bot Permissions
+
+1. **Go to "OAuth & Permissions"**
+2. **Add Bot Token Scopes**:
+   ```
+   channels:history    # Read public channel messages
+   channels:read      # View basic channel info
+   users:read         # Read user profile info
+   ```
+
+#### Step 3: Install App to Workspace
+
+1. **Click "Install to Workspace"**
+2. **Review permissions** and approve
+3. **Copy Bot User OAuth Token** (starts with `xoxb-`)
+
+#### Step 4: Configure Environment
+
+Add to your `.env` file:
+```bash
+# Slack Integration
+SLACK_BOT_TOKEN=xoxb-your-copied-token-here
+SLACK_SIGNING_SECRET=your-signing-secret-from-basic-info
+```
+
+#### Step 5: Add Bot to Channels
+
+For the agent to read channel messages:
+```
+/invite @Meeting_Prep_Agent
+```
+
+**Note**: The agent will automatically search for channels matching meeting titles (e.g., "Project Phoenix" → `#project-phoenix`).
 
 ### Deployment
 
@@ -135,12 +203,12 @@ python agents/meeting_prep_agent.py
 ```markdown
 # 📅 Meeting Brief
 
-## Project Kickoff - Q4 Planning
+## Project Phoenix Weekly Sync
 
 **🕐 Time:** 2025-08-14T15:00:00+00:00  
 **⏱️ Duration:** Until 2025-08-14T16:00:00+00:00
 
-**📝 Description:** Quarterly planning session for new product features
+**📝 Description:** Weekly sync for Project Phoenix development team
 
 **👥 Attendees:**
 - john@company.com (accepted)
@@ -151,32 +219,59 @@ python agents/meeting_prep_agent.py
 
 ## 📎 Attachments
 
-### [Q4 Planning Document](https://drive.google.com/file/d/xyz/view)
+### [Project Phoenix - Sprint Review](https://drive.google.com/file/d/xyz/view)
 **Type:** application/vnd.google-apps.document
-**Preview:** This document outlines the key objectives for Q4...
+**Preview:** Sprint 3 completed with 95% story completion rate...
+
+## 📚 Historical Context (Recurring Meeting)
+
+**Previous Instance:** 2025-08-07T15:00:00+00:00
+**Previous Description:** Sprint 2 review - discussed API implementation delays...
+
+**Meeting History:** This meeting has occurred 4 time(s) in the last 60 days.
+
+*Note: For detailed notes from previous sessions, check your meeting notes repository.*
+
+## 💬 Slack Context
+
+**Channel:** #project-phoenix
+**Recent Messages:** 12 messages in the last 7 days
+
+**Key Discussion Points:**
+- API integration testing completed successfully
+- Database migration scheduled for next sprint
+- New team member onboarding in progress
+
+**Recent Updates:**
+- Performance benchmarks exceeded expectations
+- Security review passed with minor recommendations
+
+**Direct Links:**
+- [Message from @sarah](https://slack.com/app_redirect?channel=C123&message_ts=1692123456)
+- [Message from @mike](https://slack.com/app_redirect?channel=C123&message_ts=1692123789)
 
 ## 📋 Attachment Analysis
 
-**Document Summary**: The Q4 planning document contains strategic objectives, timeline, and resource allocation for the upcoming quarter...
+**Document Summary**: Sprint review document shows excellent progress with 95% completion rate...
 
 **Key Points**:
-- Launch timeline for new features
-- Budget allocation of $500K
-- Team restructuring plans
+- All major features implemented on schedule
+- Performance metrics exceed baseline by 30%
+- Minor bug fixes identified for next sprint
 
 **Action Items**:
-- Review and approve budget proposals
-- Assign team leads for each initiative
-- Finalize Q4 roadmap
+- Complete remaining 5% of sprint backlog
+- Plan next sprint features and priorities
+- Address performance optimization opportunities
 
 ## 🧠 AI Research & Insights
 
-**Key Topics**: Based on the meeting title and description, this appears to be a strategic planning session focusing on...
+**Key Topics**: This appears to be a recurring development team sync focusing on sprint progress...
 
 **Preparation Points**:
-- Review previous quarter performance metrics
-- Prepare questions about resource allocation
-- Consider potential roadblocks and mitigation strategies
+- Review sprint metrics and completion rates
+- Prepare updates on individual contributions
+- Consider blockers and dependencies for next sprint
 ```
 
 ## 🏗️ Architecture
