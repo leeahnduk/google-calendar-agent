@@ -285,21 +285,56 @@ Format your response in clear markdown sections. Be specific and actionable in y
         """Get chat context from Slack and/or Google Chat based on meeting title and attendees"""
         chat_sections = []
         
-        # Import settings to check what integrations are enabled
-        from config.settings import load_settings
-        settings = load_settings()
+        # Load settings directly with environment variables (AgentSpace compatible)
+        import os
+        
+        def _get_env(name: str, default: str = "") -> str:
+            return os.getenv(name, default)
+        
+        # Get chat integration settings
+        google_chat_enabled = _get_env("GOOGLE_CHAT_ENABLED", "false").lower() == "true"
+        chat_integration_preference = _get_env("CHAT_INTEGRATION_PREFERENCE", "slack")
         
         # Slack Integration
-        if settings.chat_integration_preference in ["slack", "both"]:
+        if chat_integration_preference in ["slack", "both"]:
             try:
-                # Import Slack fetcher
-                import sys
-                import os
-                sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                from tools.slack_fetcher import fetch_slack_messages
+                # Inline Slack integration (AgentSpace compatible)
+                slack_bot_token = _get_env("SLACK_BOT_TOKEN", "")
                 
-                # Get messages from relevant Slack channels
-                slack_messages = fetch_slack_messages(meeting_title, lookback_days=7, max_messages=20)
+                slack_messages = []
+                if slack_bot_token:
+                    try:
+                        from slack_sdk import WebClient
+                        from slack_sdk.errors import SlackApiError
+                        
+                        client = WebClient(token=slack_bot_token)
+                        channel_cand = f"#{meeting_title.lower().replace(' ', '-')}"
+                        
+                        # Get channels
+                        res = client.conversations_list(limit=1000)
+                        channels = res.get("channels", [])
+                        
+                        # Find matching channel
+                        channel_id = None
+                        for ch in channels:
+                            if ch.get("name", "").lower() == channel_cand.strip("#"):
+                                channel_id = ch.get("id")
+                                break
+                        
+                        # Get messages if channel found
+                        if channel_id:
+                            res = client.conversations_history(channel=channel_id, limit=20)
+                            for m in res.get("messages", []):
+                                slack_messages.append({
+                                    'ts': m.get("ts", ""),
+                                    'user': m.get("user", ""),
+                                    'text': m.get("text", ""),
+                                    'channel': channel_cand,
+                                    'permalink': f"https://slack.com/app_redirect?channel={channel_id}&message_ts={m.get('ts','')}"
+                                })
+                                
+                    except Exception:
+                        pass  # Slack integration is optional
                 
                 if slack_messages:
                     # Analyze messages with AI for relevance
@@ -308,7 +343,7 @@ Format your response in clear markdown sections. Be specific and actionable in y
                     
                     messages_text = ""
                     for msg in slack_messages[:10]:  # Limit to most recent 10 messages
-                        messages_text += f"**@{msg.user}**: {msg.text}\n"
+                        messages_text += f"**@{msg['user']}**: {msg['text']}\n"
                     
                     slack_analysis_prompt = f"""
 Analyze these recent Slack messages from the channel related to the meeting "{meeting_title}":
@@ -329,13 +364,13 @@ Keep the response concise and focused on meeting preparation.
                     slack_section = f"""
 ## 💬 Slack Context
 
-**Channel**: {slack_messages[0].channel if slack_messages else "Unknown"}
+**Channel**: {slack_messages[0]['channel'] if slack_messages else "Unknown"}
 **Recent Messages**: {len(slack_messages)} messages in the last 7 days
 
 {response.text}
 
 **Direct Links**:
-{chr(10).join([f"- [Message from @{msg.user}]({msg.permalink})" for msg in slack_messages[:3]])}
+{chr(10).join([f"- [Message from @{msg['user']}]({msg['permalink']})" for msg in slack_messages[:3]])}
 """
                     chat_sections.append(slack_section)
                 else:
@@ -375,24 +410,97 @@ Unable to fetch Slack context: {str(e)}
                 chat_sections.append(slack_section)
         
         # Google Chat Integration
-        if settings.chat_integration_preference in ["google_chat", "both"] and settings.google_chat_enabled:
+        if chat_integration_preference in ["google_chat", "both"] and google_chat_enabled:
             try:
-                # Import Google Chat fetcher
-                import sys
-                import os
-                sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                from tools.google_chat_fetcher import search_google_chat_history, fetch_google_chat_messages
+                # Inline Google Chat integration (AgentSpace compatible)
+                from datetime import datetime, timedelta
+                
+                def _fetch_google_chat_messages():
+                    """Inline Google Chat fetching"""
+                    try:
+                        from googleapiclient.discovery import build
+                        from googleapiclient.errors import HttpError
+                        
+                        service = build('chat', 'v1', credentials=creds)
+                        
+                        # Get all spaces
+                        spaces_result = service.spaces().list().execute()
+                        spaces_data = spaces_result.get('spaces', [])
+                        
+                        all_messages = []
+                        cutoff_time = datetime.now() - timedelta(days=7)
+                        
+                        # Find relevant spaces and get messages
+                        title_words = set(word.lower().strip() for word in meeting_title.split() if len(word) > 2)
+                        
+                        for space_data in spaces_data:
+                            space_name = space_data.get('name', '')
+                            space_display_name = space_data.get('displayName', '')
+                            space_type = space_data.get('type', '')
+                            
+                            # Check if space is relevant
+                            is_relevant = False
+                            if space_type == 'DM':
+                                is_relevant = True  # Check all DMs
+                            else:
+                                # Check if space name contains meeting keywords
+                                space_words = set(word.lower().strip() for word in space_display_name.split())
+                                if title_words.intersection(space_words):
+                                    is_relevant = True
+                            
+                            if is_relevant:
+                                try:
+                                    # Get messages from this space
+                                    messages_result = service.spaces().messages().list(
+                                        parent=space_name,
+                                        pageSize=20,
+                                        orderBy='createTime desc'
+                                    ).execute()
+                                    
+                                    messages_data = messages_result.get('messages', [])
+                                    
+                                    for msg_data in messages_data:
+                                        # Parse message creation time
+                                        create_time_str = msg_data.get('createTime', '')
+                                        try:
+                                            create_time = datetime.fromisoformat(create_time_str.replace('Z', '+00:00'))
+                                            if create_time < cutoff_time:
+                                                continue  # Skip old messages
+                                        except ValueError:
+                                            continue
+                                        
+                                        # Extract message details
+                                        sender_info = msg_data.get('sender', {})
+                                        sender_name = (
+                                            sender_info.get('displayName', '') or 
+                                            sender_info.get('name', '').split('/')[-1] or 
+                                            'Unknown'
+                                        )
+                                        
+                                        message_text = msg_data.get('text', '')
+                                        
+                                        # Basic relevance check
+                                        message_words = set(word.lower().strip() for word in message_text.split())
+                                        if title_words.intersection(message_words) or len(message_text.strip()) > 10:
+                                            all_messages.append({
+                                                'sender': sender_name,
+                                                'text': message_text,
+                                                'create_time': create_time_str,
+                                                'space': space_display_name
+                                            })
+                                        
+                                except HttpError:
+                                    continue  # Skip spaces we can't access
+                        
+                        # Sort by creation time and limit results
+                        all_messages.sort(key=lambda m: m['create_time'], reverse=True)
+                        return all_messages[:20]
+                        
+                    except Exception:
+                        return []
                 
                 # Get messages from Google Chat
-                chat_messages = search_google_chat_history(
-                    creds, meeting_title, attendee_emails, lookback_days=7
-                )
-                
-                if not chat_messages:
-                    # Fallback to general meeting-related search
-                    chat_messages = fetch_google_chat_messages(
-                        creds, meeting_title, lookback_days=7, max_messages=20
-                    )
+                chat_messages = _fetch_google_chat_messages()
                 
                 if chat_messages:
                     # Analyze messages with AI for relevance
@@ -402,8 +510,8 @@ Unable to fetch Slack context: {str(e)}
                     messages_text = ""
                     spaces_mentioned = set()
                     for msg in chat_messages[:10]:  # Limit to most recent 10 messages
-                        messages_text += f"**{msg.sender}** (in {msg.space}): {msg.text}\n"
-                        spaces_mentioned.add(msg.space)
+                        messages_text += f"**{msg['sender']}** (in {msg['space']}): {msg['text']}\n"
+                        spaces_mentioned.add(msg['space'])
                     
                     chat_analysis_prompt = f"""
 Analyze these recent Google Chat messages related to the meeting "{meeting_title}":
@@ -430,7 +538,7 @@ Keep the response concise and focused on meeting preparation.
 {response.text}
 
 **Message Timeline**:
-{chr(10).join([f"- **{msg.sender}**: {msg.text[:100]}{'...' if len(msg.text) > 100 else ''} _(in {msg.space})_" for msg in chat_messages[:3]])}
+{chr(10).join([f"- **{msg['sender']}**: {msg['text'][:100]}{'...' if len(msg['text']) > 100 else ''} _(in {msg['space']})_" for msg in chat_messages[:3]])}
 """
                     chat_sections.append(chat_section)
                 else:
@@ -470,7 +578,7 @@ No chat integrations are currently enabled.
 - Slack: Set SLACK_BOT_TOKEN and CHAT_INTEGRATION_PREFERENCE
 - Google Chat: Set GOOGLE_CHAT_ENABLED=true and CHAT_INTEGRATION_PREFERENCE
 
-*Current preference: {settings.chat_integration_preference}*
+*Current preference: {chat_integration_preference}*
 """
         
         return "\n".join(chat_sections)
