@@ -31,12 +31,20 @@ An intelligent AI agent that automatically prepares comprehensive meeting briefs
 - **Timeline Tracking**: Shows meeting history over the last 60 days
 - **Context Continuity**: Maintains context across recurring meeting series
 
-### 💬 **Slack Integration** 
+### 💬 **Multi-Platform Chat Integration**
+#### Slack Integration
 - **Smart Channel Detection**: Automatically finds relevant Slack channels based on meeting titles
 - **Message Analysis**: Scans recent discussions (last 7 days) for meeting context
 - **AI-Powered Relevance**: Uses Gemini 2.5 Flash to analyze and summarize Slack conversations
 - **Direct Links**: Provides links to relevant Slack messages and threads
 - **Channel Suggestions**: Recommends channels to check manually when auto-detection fails
+
+#### Google Chat Integration
+- **Intelligent Space Discovery**: Finds relevant Google Chat spaces and direct messages
+- **Attendee-Based Search**: Searches conversations with meeting attendees
+- **Meeting Topic Matching**: Identifies chats discussing meeting-related topics
+- **Historical Context**: Analyzes recent messages for meeting preparation insights
+- **Multi-Space Analysis**: Aggregates discussions across different chat spaces
 
 ### 🧠 **AI-Powered Analysis**
 - **Gemini 2.5 Flash Integration**: Latest AI model for superior meeting context analysis
@@ -120,9 +128,13 @@ CLIENT_SECRET=your-oauth-client-secret
 AGENT_DISPLAY_NAME=Meeting_Prep_Agent
 AUTH_ID=meeting-prep-auth
 
-# Optional: Slack Integration
+# Optional: Chat Integration
 SLACK_BOT_TOKEN=xoxb-your-slack-bot-token
 SLACK_SIGNING_SECRET=your-slack-signing-secret
+
+# Google Chat Integration
+GOOGLE_CHAT_ENABLED=true
+CHAT_INTEGRATION_PREFERENCE=both  # Options: "slack", "google_chat", or "both"
 ```
 
 **⚠️ Security Note**: The `.env` file is automatically excluded from version control. See [SECURITY.md](SECURITY.md) for detailed security guidelines.
@@ -171,6 +183,48 @@ For the agent to read channel messages:
 ```
 
 **Note**: The agent will automatically search for channels matching meeting titles (e.g., "Project Phoenix" → `#project-phoenix`).
+
+### 💬 Google Chat Integration Setup (Optional)
+
+To enable Google Chat integration for enhanced meeting context:
+
+#### Step 1: Enable Google Chat API
+
+1. **Visit Google Cloud Console**: https://console.cloud.google.com/
+2. **Navigate to APIs & Services** → **Library**
+3. **Search for "Google Chat API"** and enable it
+4. **Ensure your OAuth consent screen includes the Chat scopes**
+
+#### Step 2: Update OAuth Scopes
+
+Add these scopes to your OAuth consent screen:
+```
+https://www.googleapis.com/auth/chat.spaces.readonly
+https://www.googleapis.com/auth/chat.messages.readonly
+```
+
+#### Step 3: Configure Environment
+
+Add to your `.env` file:
+```bash
+# Google Chat Integration
+GOOGLE_CHAT_ENABLED=true
+CHAT_INTEGRATION_PREFERENCE=both  # Use both Slack and Google Chat
+```
+
+#### Step 4: Grant Permissions
+
+When you next authenticate through AgentSpace, you'll be prompted to grant Google Chat permissions. The agent will:
+- Access your Google Chat spaces (read-only)
+- Search for relevant conversations with meeting attendees
+- Analyze messages for meeting preparation context
+
+**Integration Options:**
+- `CHAT_INTEGRATION_PREFERENCE=slack` - Slack only
+- `CHAT_INTEGRATION_PREFERENCE=google_chat` - Google Chat only  
+- `CHAT_INTEGRATION_PREFERENCE=both` - Both platforms (recommended)
+
+**Note**: Google Chat integration works automatically with your existing Google Workspace account and doesn't require additional bot setup.
 
 ### Deployment
 
@@ -249,6 +303,25 @@ python agents/meeting_prep_agent.py
 **Direct Links:**
 - [Message from @sarah](https://slack.com/app_redirect?channel=C123&message_ts=1692123456)
 - [Message from @mike](https://slack.com/app_redirect?channel=C123&message_ts=1692123789)
+
+## 💬 Google Chat Context
+
+**Spaces involved:** Project Phoenix Team, Direct messages
+**Recent Messages:** 8 messages in the last 7 days
+
+**Key Discussion Points:**
+- Sprint planning discussion with updated timeline
+- Technical architecture decisions for new features
+- Resource allocation for upcoming milestones
+
+**Recent Updates:**
+- Code review process improvements implemented
+- New deployment pipeline ready for testing
+
+**Message Timeline:**
+- **Sarah Chen**: Reviewed the latest API specs, looks good for integration... _(in Project Phoenix Team)_
+- **Mike Rodriguez**: Updated the database schema, migration scripts ready... _(in Direct messages)_
+- **John Smith**: Sprint planning notes shared, let's discuss in tomorrow's meeting... _(in Project Phoenix Team)_
 
 ## 📋 Attachment Analysis
 
@@ -352,6 +425,8 @@ print(f'Last updated: {agents[0].update_time}')
 https://www.googleapis.com/auth/calendar.readonly
 https://www.googleapis.com/auth/drive.readonly
 https://www.googleapis.com/auth/userinfo.email
+https://www.googleapis.com/auth/chat.spaces.readonly  # For Google Chat integration
+https://www.googleapis.com/auth/chat.messages.readonly  # For Google Chat messages
 ```
 
 ## 🔒 Security & Privacy
@@ -369,6 +444,8 @@ https://www.googleapis.com/auth/userinfo.email
 https://www.googleapis.com/auth/calendar.readonly
 https://www.googleapis.com/auth/drive.readonly
 https://www.googleapis.com/auth/userinfo.email
+https://www.googleapis.com/auth/chat.spaces.readonly  # For Google Chat integration
+https://www.googleapis.com/auth/chat.messages.readonly  # For Google Chat messages
 ```
 
 ## 📈 Performance

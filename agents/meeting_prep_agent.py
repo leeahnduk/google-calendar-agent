@@ -281,49 +281,36 @@ Format your response in clear markdown sections. Be specific and actionable in y
         except Exception as e:
             return f"Historical context unavailable: {str(e)}"
     
-    def _get_slack_context(meeting_title: str) -> str:
-        """Get Slack channel context based on meeting title"""
-        try:
-            # Import Slack fetcher
-            import sys
-            import os
-            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            from tools.slack_fetcher import fetch_slack_messages
-            
-            # Get messages from relevant Slack channels
-            messages = fetch_slack_messages(meeting_title, lookback_days=7, max_messages=20)
-            
-            if not messages:
-                # Try to infer channel name from meeting title
-                potential_channels = []
-                title_words = meeting_title.lower().split()
+    def _get_chat_context(meeting_title: str, attendee_emails: List[str], creds: Credentials) -> str:
+        """Get chat context from Slack and/or Google Chat based on meeting title and attendees"""
+        chat_sections = []
+        
+        # Import settings to check what integrations are enabled
+        from config.settings import load_settings
+        settings = load_settings()
+        
+        # Slack Integration
+        if settings.chat_integration_preference in ["slack", "both"]:
+            try:
+                # Import Slack fetcher
+                import sys
+                import os
+                sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                from tools.slack_fetcher import fetch_slack_messages
                 
-                # Common patterns for channel naming
-                for word in title_words:
-                    if len(word) > 3:  # Skip short words
-                        potential_channels.append(f"#{word}")
-                        potential_channels.append(f"#{word.replace(' ', '-')}")
+                # Get messages from relevant Slack channels
+                slack_messages = fetch_slack_messages(meeting_title, lookback_days=7, max_messages=20)
                 
-                return f"""
-## 💬 Slack Context
-
-No recent messages found in channels related to "{meeting_title}".
-
-**Suggested channels to check manually:**
-{chr(10).join([f"- {channel}" for channel in potential_channels[:3]])}
-
-*Note: Slack integration requires proper bot token configuration.*
-"""
-            
-            # Analyze messages with AI for relevance
-            vertexai.init(project=google_cloud_project, location=google_cloud_location)
-            model = GenerativeModel("gemini-2.5-flash")
-            
-            messages_text = ""
-            for msg in messages[:10]:  # Limit to most recent 10 messages
-                messages_text += f"**@{msg.user}**: {msg.text}\n"
-            
-            slack_analysis_prompt = f"""
+                if slack_messages:
+                    # Analyze messages with AI for relevance
+                    vertexai.init(project=google_cloud_project, location=google_cloud_location)
+                    model = GenerativeModel("gemini-2.5-flash")
+                    
+                    messages_text = ""
+                    for msg in slack_messages[:10]:  # Limit to most recent 10 messages
+                        messages_text += f"**@{msg.user}**: {msg.text}\n"
+                    
+                    slack_analysis_prompt = f"""
 Analyze these recent Slack messages from the channel related to the meeting "{meeting_title}":
 
 {messages_text}
@@ -336,23 +323,46 @@ Please provide:
 
 Keep the response concise and focused on meeting preparation.
 """
-            
-            response = model.generate_content(slack_analysis_prompt)
-            
-            return f"""
+                    
+                    response = model.generate_content(slack_analysis_prompt)
+                    
+                    slack_section = f"""
 ## 💬 Slack Context
 
-**Channel**: {messages[0].channel if messages else "Unknown"}
-**Recent Messages**: {len(messages)} messages in the last 7 days
+**Channel**: {slack_messages[0].channel if slack_messages else "Unknown"}
+**Recent Messages**: {len(slack_messages)} messages in the last 7 days
 
 {response.text}
 
 **Direct Links**:
-{chr(10).join([f"- [Message from @{msg.user}]({msg.permalink})" for msg in messages[:3]])}
+{chr(10).join([f"- [Message from @{msg.user}]({msg.permalink})" for msg in slack_messages[:3]])}
 """
-            
-        except Exception as e:
-            return f"""
+                    chat_sections.append(slack_section)
+                else:
+                    # Try to infer channel name from meeting title
+                    potential_channels = []
+                    title_words = meeting_title.lower().split()
+                    
+                    # Common patterns for channel naming
+                    for word in title_words:
+                        if len(word) > 3:  # Skip short words
+                            potential_channels.append(f"#{word}")
+                            potential_channels.append(f"#{word.replace(' ', '-')}")
+                    
+                    slack_section = f"""
+## 💬 Slack Context
+
+No recent messages found in channels related to "{meeting_title}".
+
+**Suggested channels to check manually:**
+{chr(10).join([f"- {channel}" for channel in potential_channels[:3]])}
+
+*Note: Slack integration requires proper bot token configuration.*
+"""
+                    chat_sections.append(slack_section)
+                    
+            except Exception as e:
+                slack_section = f"""
 ## 💬 Slack Context
 
 Unable to fetch Slack context: {str(e)}
@@ -362,6 +372,108 @@ Unable to fetch Slack context: {str(e)}
 - Bot permissions to read channels
 - Channel naming that matches meeting title patterns
 """
+                chat_sections.append(slack_section)
+        
+        # Google Chat Integration
+        if settings.chat_integration_preference in ["google_chat", "both"] and settings.google_chat_enabled:
+            try:
+                # Import Google Chat fetcher
+                import sys
+                import os
+                sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                from tools.google_chat_fetcher import search_google_chat_history, fetch_google_chat_messages
+                
+                # Get messages from Google Chat
+                chat_messages = search_google_chat_history(
+                    creds, meeting_title, attendee_emails, lookback_days=7
+                )
+                
+                if not chat_messages:
+                    # Fallback to general meeting-related search
+                    chat_messages = fetch_google_chat_messages(
+                        creds, meeting_title, lookback_days=7, max_messages=20
+                    )
+                
+                if chat_messages:
+                    # Analyze messages with AI for relevance
+                    vertexai.init(project=google_cloud_project, location=google_cloud_location)
+                    model = GenerativeModel("gemini-2.5-flash")
+                    
+                    messages_text = ""
+                    spaces_mentioned = set()
+                    for msg in chat_messages[:10]:  # Limit to most recent 10 messages
+                        messages_text += f"**{msg.sender}** (in {msg.space}): {msg.text}\n"
+                        spaces_mentioned.add(msg.space)
+                    
+                    chat_analysis_prompt = f"""
+Analyze these recent Google Chat messages related to the meeting "{meeting_title}":
+
+{messages_text}
+
+Please provide:
+1. **Key Discussion Points**: Main topics being discussed
+2. **Recent Updates**: Any important updates or decisions
+3. **Action Items**: Tasks or follow-ups mentioned
+4. **Relevance**: How these discussions relate to the upcoming meeting
+
+Keep the response concise and focused on meeting preparation.
+"""
+                    
+                    response = model.generate_content(chat_analysis_prompt)
+                    
+                    chat_section = f"""
+## 💬 Google Chat Context
+
+**Spaces involved**: {', '.join(list(spaces_mentioned)[:3])}
+**Recent Messages**: {len(chat_messages)} messages in the last 7 days
+
+{response.text}
+
+**Message Timeline**:
+{chr(10).join([f"- **{msg.sender}**: {msg.text[:100]}{'...' if len(msg.text) > 100 else ''} _(in {msg.space})_" for msg in chat_messages[:3]])}
+"""
+                    chat_sections.append(chat_section)
+                else:
+                    chat_section = f"""
+## 💬 Google Chat Context
+
+No recent Google Chat messages found related to "{meeting_title}" with the meeting attendees.
+
+*Note: This searches through:*
+- Direct messages with attendees
+- Group chats involving attendees
+- Conversations mentioning meeting topics
+"""
+                    chat_sections.append(chat_section)
+                    
+            except Exception as e:
+                chat_section = f"""
+## 💬 Google Chat Context
+
+Unable to fetch Google Chat context: {str(e)}
+
+*Note: Google Chat integration requires:*
+- Proper OAuth2 credentials with Chat API access
+- google-apps-chat scope enabled
+- GOOGLE_CHAT_ENABLED=true in environment
+"""
+                chat_sections.append(chat_section)
+        
+        # If no integrations are configured
+        if not chat_sections:
+            return f"""
+## 💬 Chat Context
+
+No chat integrations are currently enabled.
+
+**Available integrations:**
+- Slack: Set SLACK_BOT_TOKEN and CHAT_INTEGRATION_PREFERENCE
+- Google Chat: Set GOOGLE_CHAT_ENABLED=true and CHAT_INTEGRATION_PREFERENCE
+
+*Current preference: {settings.chat_integration_preference}*
+"""
+        
+        return "\n".join(chat_sections)
     
     def _research_with_gemini(meeting_title: str, description: str, attendees: List[str]) -> str:
         """Use Gemini to research meeting context and provide insights"""
@@ -452,12 +564,12 @@ Keep the response concise but informative, formatted in markdown.
             doc = _get_drive_document_content(drive_service, file_id)
             drive_files.append(doc)
         
-        # Get comprehensive analysis including historical and Slack context
+        # Get comprehensive analysis including historical and chat context
         attendee_emails = [att.email for att in attendees if att.email]
         ai_insights = _research_with_gemini(event_context.summary, event_context.description or "", attendee_emails)
         attachment_analysis = _analyze_attachments_with_gemini(drive_files, event_context.summary)
         historical_context = _get_historical_context(calendar_service, event_context)
-        slack_context = _get_slack_context(event_context.summary)
+        chat_context = _get_chat_context(event_context.summary, attendee_emails, creds)
         
         # Build enhanced meeting brief
         attachments_section = ""
@@ -490,7 +602,7 @@ Keep the response concise but informative, formatted in markdown.
 
 {historical_context}
 
-{slack_context}
+{chat_context}
 
 ## 📋 Attachment Analysis
 

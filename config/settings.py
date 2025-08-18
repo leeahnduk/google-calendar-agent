@@ -29,6 +29,10 @@ class Settings:
     # Slack
     slack_bot_token: str
     slack_signing_secret: str
+    
+    # Google Chat
+    google_chat_enabled: bool
+    chat_integration_preference: str  # "slack", "google_chat", or "both"
 
 
 def load_settings() -> Settings:
@@ -44,4 +48,6 @@ def load_settings() -> Settings:
         historical_lookback_days=int(_get_env("HISTORICAL_LOOKBACK_DAYS", default="90")),
         slack_bot_token=_get_env("SLACK_BOT_TOKEN", default=""),
         slack_signing_secret=_get_env("SLACK_SIGNING_SECRET", default=""),
+        google_chat_enabled=_get_env("GOOGLE_CHAT_ENABLED", default="false").lower() == "true",
+        chat_integration_preference=_get_env("CHAT_INTEGRATION_PREFERENCE", default="slack"),
     )
