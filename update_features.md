@@ -34,19 +34,16 @@ Edit the agent code in `agents/meeting_prep_agent.py`:
 
 ### Step 3: Deploy Updated Agent
 
-Run the deployment command with all required environment variables:
+Run the deployment command (environment variables are loaded from .env file):
 
 ```bash
 cd /Users/anhduc/API/ADK/google-calendar-agent && \
 source venv/bin/activate && \
 export PYTHONPATH=/Users/anhduc/API/ADK/google-calendar-agent:$PYTHONPATH && \
-export GOOGLE_CLOUD_PROJECT=aiproject-429506 && \
-export GOOGLE_CLOUD_LOCATION=us-central1 && \
-export STAGING_BUCKET=gs://duc_agentspace_staging_bucket && \
-export AUTH_ID=meeting-prep-auth && \
-export AGENT_DISPLAY_NAME="Meeting_Prep_Agent" && \
 python agents/meeting_prep_agent.py
 ```
+
+**Note:** All configuration values (including AUTH_ID, GOOGLE_CLOUD_PROJECT, etc.) are automatically loaded from the `.env` file.
 
 **Note:** This command may take 2-5 minutes to complete and might timeout. This is normal for agent deployments.
 
@@ -55,22 +52,21 @@ python agents/meeting_prep_agent.py
 Check if the agent was successfully updated:
 
 ```bash
-source /Users/anhduc/API/ADK/google-calendar-agent/.env && \
-source /Users/anhduc/API/ADK/google-calendar-agent/venv/bin/activate && \
+cd /Users/anhduc/API/ADK/google-calendar-agent && \
+source venv/bin/activate && \
 python -c "
-import os
-os.environ['GOOGLE_CLOUD_PROJECT'] = '${GOOGLE_CLOUD_PROJECT}'
-os.environ['GOOGLE_CLOUD_LOCATION'] = '${GOOGLE_CLOUD_LOCATION}'
-os.environ['STAGING_BUCKET'] = 'gs://${STAGING_BUCKET}'
-os.environ['AUTH_ID'] = '${AUTH_ID}'
-os.environ['AGENT_DISPLAY_NAME'] = '${AGENT_DISPLAY_NAME}'
-
+from dotenv import load_dotenv
+from config.settings import load_settings
 import vertexai
 from vertexai import agent_engines
 
-vertexai.init(project='${GOOGLE_CLOUD_PROJECT}', location='${GOOGLE_CLOUD_LOCATION}')
-agents = list(agent_engines.list(filter='display_name=\"${AGENT_DISPLAY_NAME}\"'))
-print(f'Found {len(agents)} agents with display name \"${AGENT_DISPLAY_NAME}\"')
+load_dotenv()
+settings = load_settings()
+
+vertexai.init(project=settings.google_cloud_project, location=settings.google_cloud_location)
+agents = list(agent_engines.list(filter=f'display_name=\"{settings.agent_display_name}\"'))
+print(f'Found {len(agents)} agents with display name \"{settings.agent_display_name}\"')
+print(f'Using AUTH_ID: {settings.auth_id}')
 for agent in agents:
     print(f'Agent: {agent.display_name}')
     print(f'Updated: {agent.update_time}')
@@ -224,7 +220,31 @@ def prepare_meeting_brief(tool_context: ToolContext):
 
 ---
 
-## 🚀 Latest Deployment - August 18, 2025
+## 🚀 Latest Deployment - August 19, 2025
+
+**🆕 New Agent Creation & AgentSpace Registration - Meeting_Prep_Agent_New (06:51:41 UTC):**
+- **Complete Solution:** Created and registered new agent `Meeting_Prep_Agent_New` in AgentSpace
+- **Reasoning Engine:** `projects/777331773170/locations/us-central1/reasoningEngines/510305336683397120`
+- **AgentSpace Agent ID:** `14215929426136558776`
+- **OAuth Authorization:** `meeting-prep-new-auth` (active OAuth client with correct scopes)
+- **AgentSpace Engine:** `argolis-demo-agent_1752114481275`
+- **Status:** ✅ Successfully created, deployed, and registered in AgentSpace
+- **Visibility:** Agent now appears in AgentSpace UI under "From your organization"
+
+**✅ Resolution Steps Completed:**
+1. Created new reasoning engine with clean OAuth configuration (06:33:30 UTC)
+2. Configured missing AgentSpace environment variables  
+3. Registered agent in AgentSpace using discovery engine API (06:51:41 UTC)
+4. Agent now visible and ready for use in AgentSpace
+
+**Previous Issues Resolved:**
+- OAuth client configuration conflicts with old agent
+- Missing AgentSpace registration causing agent to be invisible in UI
+- Environment variable configuration for AgentSpace deployment
+
+---
+
+## 🚀 Previous Deployment - August 18, 2025
 
 **💬 Google Chat Integration - Multi-Platform Chat Support (08:11:03 UTC):**
 - **New Feature:** Complete Google Chat API integration for meeting context
@@ -282,9 +302,12 @@ Refer to the updated `Testplan.md` for comprehensive testing scenarios for the n
 
 ---
 
-*Last updated: 2025-08-18*
-*Agent Resource: projects/777331773170/locations/us-central1/reasoningEngines/6897957720666669056*
-*Latest Deployment: 2025-08-18 08:11:03 UTC*
+*Last updated: 2025-08-19*
+*Primary Agent: Meeting_Prep_Agent_New*
+*Reasoning Engine: projects/777331773170/locations/us-central1/reasoningEngines/510305336683397120*
+*AgentSpace Agent ID: 14215929426136558776*
+*Latest Registration: 2025-08-19 06:51:41 UTC*
 *AI Model: Gemini 2.5 Flash (Latest)*
 *Features: Multi-Platform Chat Integration (Slack + Google Chat)*
-*Deployment Status: ✅ Production Ready with AgentSpace Compatibility*
+*OAuth Authorization: meeting-prep-new-auth (Active OAuth client with all required scopes)*
+*AgentSpace Status: ✅ Fully Registered and Visible in UI*

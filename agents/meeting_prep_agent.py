@@ -291,9 +291,9 @@ Format your response in clear markdown sections. Be specific and actionable in y
         def _get_env(name: str, default: str = "") -> str:
             return os.getenv(name, default)
         
-        # Get chat integration settings
-        google_chat_enabled = _get_env("GOOGLE_CHAT_ENABLED", "false").lower() == "true"
-        chat_integration_preference = _get_env("CHAT_INTEGRATION_PREFERENCE", "slack")
+        # Get chat integration settings - Default to enabling Google Chat
+        google_chat_enabled = _get_env("GOOGLE_CHAT_ENABLED", "true").lower() == "true"
+        chat_integration_preference = _get_env("CHAT_INTEGRATION_PREFERENCE", "both")
         
         # Slack Integration
         if chat_integration_preference in ["slack", "both"]:
@@ -555,24 +555,40 @@ No recent Google Chat messages found related to "{meeting_title}" with the meeti
                     chat_sections.append(chat_section)
                     
             except Exception as e:
+                error_details = str(e)
                 chat_section = f"""
 ## 💬 Google Chat Context
 
-Unable to fetch Google Chat context: {str(e)}
+❌ **Error:** Unable to fetch Google Chat context
 
-*Note: Google Chat integration requires:*
-- Proper OAuth2 credentials with Chat API access
-- google-apps-chat scope enabled
+**Error Details:** {error_details}
+
+**Troubleshooting:**
+- If error mentions "403" or "insufficient permissions": OAuth needs Google Chat scopes
+- If error mentions "API not enabled": Enable Google Chat API in Cloud Console
+- If error mentions "credentials": Check OAuth authorization status
+
+**Required for Google Chat:**
+- OAuth2 credentials with Chat API access
+- Scopes: `chat.spaces.readonly` and `chat.messages.readonly`
+- Google Chat API enabled in Cloud Console
 - GOOGLE_CHAT_ENABLED=true in environment
+
+**Next Steps:** Reauthenticate with Google Chat permissions
 """
                 chat_sections.append(chat_section)
         
-        # If no integrations are configured
+        # If no integrations are configured or add debug info
         if not chat_sections:
-            return f"""
+            debug_info = f"""
 ## 💬 Chat Context
 
 No chat integrations are currently enabled.
+
+**Debug Information:**
+- GOOGLE_CHAT_ENABLED: {google_chat_enabled}
+- CHAT_INTEGRATION_PREFERENCE: {chat_integration_preference}
+- Slack token configured: {bool(_get_env("SLACK_BOT_TOKEN", ""))}
 
 **Available integrations:**
 - Slack: Set SLACK_BOT_TOKEN and CHAT_INTEGRATION_PREFERENCE
@@ -580,6 +596,26 @@ No chat integrations are currently enabled.
 
 *Current preference: {chat_integration_preference}*
 """
+            chat_sections.append(debug_info)
+        
+        # Always add debug section when Google Chat is enabled but no messages found
+        if google_chat_enabled and chat_integration_preference in ["google_chat", "both"]:
+            if not any("Google Chat Context" in section for section in chat_sections):
+                debug_section = f"""
+## 💬 Google Chat Debug
+
+**Configuration Status:** ✅ Google Chat is enabled
+- GOOGLE_CHAT_ENABLED: {google_chat_enabled}
+- CHAT_INTEGRATION_PREFERENCE: {chat_integration_preference}
+- Meeting Title: "{meeting_title}"
+- Attendees: {len(attendee_emails)} attendee(s)
+
+**Possible Issues:**
+- OAuth permissions for Google Chat API not granted
+- No Google Chat conversations found related to this meeting
+- Google Chat API access denied
+"""
+                chat_sections.append(debug_section)
         
         return "\n".join(chat_sections)
     
