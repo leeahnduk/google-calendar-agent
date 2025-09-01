@@ -570,6 +570,8 @@ Security is a top priority. Please review our [Security Guidelines](SECURITY.md)
 
 ---
 
-**⚡ Agent Status**: Production Ready  
-**📅 Last Updated**: August 14, 2025  
-**🚀 Agent Resource**: `projects/777331773170/locations/us-central1/reasoningEngines/6897957720666669056`
+**⚡ Agent Status**: Production Ready with Enhanced Gmail Integration  
+**📅 Last Updated**: January 1, 2025  
+**🚀 Agent Resource**: `projects/777331773170/locations/us-central1/reasoningEngines/6987198482423480320`  
+**🎯 AgentSpace ID**: `3458178826058614269`  
+**🔑 Authorization**: `meeting-prep-gmail-auth`
