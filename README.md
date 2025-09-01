@@ -14,7 +14,7 @@ An intelligent AI agent that automatically prepares comprehensive meeting briefs
 - **Historical Context**: For recurring meetings, finds and analyzes past instances
 - **Past Meeting Analysis**: Links to previous meeting notes and summaries
 
-### 📎 **Advanced Attachment Processing** 
+### 📎 **Advanced Document & Attachment Processing** 
 - **Google Drive Integration**: Automatically detects and extracts content from:
   - Google Docs (text content)
   - Google Sheets (CSV data)
@@ -23,6 +23,10 @@ An intelligent AI agent that automatically prepares comprehensive meeting briefs
   - Plain text files
 - **Smart URL Detection**: Finds Drive links in meeting descriptions
 - **Content Preview**: Shows relevant excerpts from attached documents
+- **Comprehensive Document Search**: Searches Google Drive for related documents beyond just attachments
+- **Gmail Integration**: Searches emails between attendees for relevant attachments and documents
+- **AI-Powered Relevance Scoring**: Ranks documents by relevance to meeting context
+- **Document Table**: Comprehensive table showing all relevant documents with metadata, relevance scores, and direct links
 
 ### 📚 **Historical Context & Meeting Memory**
 - **Recurring Meeting Support**: Automatically detects recurring meetings
@@ -226,6 +230,45 @@ When you next authenticate through AgentSpace, you'll be prompted to grant Googl
 
 **Note**: Google Chat integration works automatically with your existing Google Workspace account and doesn't require additional bot setup.
 
+### 📧 Gmail Integration Setup (Optional)
+
+To enable Gmail integration for comprehensive document and attachment search:
+
+#### Step 1: Enable Gmail API
+
+1. **Visit Google Cloud Console**: https://console.cloud.google.com/
+2. **Navigate to APIs & Services** → **Library**
+3. **Search for "Gmail API"** and enable it
+4. **Ensure your OAuth consent screen includes the Gmail scope**
+
+#### Step 2: Update OAuth Scopes
+
+Add this scope to your OAuth consent screen:
+```
+https://www.googleapis.com/auth/gmail.readonly
+```
+
+#### Step 3: Configure Environment
+
+The Gmail integration is automatically enabled when the Gmail API scope is available. No additional environment variables are required.
+
+#### Step 4: Grant Permissions
+
+When you next authenticate through AgentSpace, you'll be prompted to grant Gmail permissions. The agent will:
+- Search emails between meeting attendees
+- Extract attachments from relevant emails
+- Include Gmail attachments in the comprehensive document table
+- Provide direct links to Gmail messages containing relevant attachments
+
+**Gmail Integration Features:**
+- **Attendee Email Search**: Finds emails between meeting participants
+- **Keyword-Based Search**: Searches emails containing meeting-related keywords
+- **Attachment Extraction**: Identifies and lists attachments from relevant emails
+- **Relevance Scoring**: Ranks Gmail attachments by relevance to meeting context
+- **Direct Links**: Provides links to Gmail messages for easy access
+
+**Note**: Gmail integration requires the `gmail.readonly` scope and works automatically with your existing Google Workspace account.
+
 ### Deployment
 
 Deploy to Google Cloud AgentSpace:
@@ -323,7 +366,19 @@ python agents/meeting_prep_agent.py
 - **Mike Rodriguez**: Updated the database schema, migration scripts ready... _(in Direct messages)_
 - **John Smith**: Sprint planning notes shared, let's discuss in tomorrow's meeting... _(in Project Phoenix Team)_
 
-## 📋 Attachment Analysis
+## 📋 Relevant Documents & Resources
+
+| Document Name | Type | Source | Relevance | Last Modified | Size | Link |
+|---------------|------|--------|-----------|---------------|------|------|
+| Project Phoenix - Sprint Review | 📄 Document | 📎 Direct | ⭐⭐⭐⭐⭐ High | 2025-08-13 | 2.1 MB | [Open](https://drive.google.com/file/d/xyz/view) |
+| API Integration Specs | 📄 Document | 📧 Gmail | ⭐⭐⭐⭐ High | 2025-08-12 | 1.5 MB | [Open](https://mail.google.com/mail/u/0/#inbox/abc) |
+| Database Schema Updates | 📊 Spreadsheet | 💾 Drive | ⭐⭐⭐ Medium | 2025-08-11 | 850 KB | [Open](https://drive.google.com/file/d/def/view) |
+| Performance Benchmarks | 📽️ Presentation | 📧 Gmail | ⭐⭐⭐ Medium | 2025-08-10 | 3.2 MB | [Open](https://mail.google.com/mail/u/0/#inbox/ghi) |
+| Security Review Report | 📕 PDF | 💾 Drive | ⭐⭐ Low | 2025-08-09 | 1.8 MB | [Open](https://drive.google.com/file/d/jkl/view) |
+
+**📊 Summary:** 5 relevant documents found (1 Direct attachments, 2 Gmail attachments, 2 Drive documents)
+
+## 📋 Document Analysis
 
 **Document Summary**: Sprint review document shows excellent progress with 95% completion rate...
 
@@ -427,6 +482,7 @@ https://www.googleapis.com/auth/drive.readonly
 https://www.googleapis.com/auth/userinfo.email
 https://www.googleapis.com/auth/chat.spaces.readonly  # For Google Chat integration
 https://www.googleapis.com/auth/chat.messages.readonly  # For Google Chat messages
+https://www.googleapis.com/auth/gmail.readonly  # For Gmail integration and attachment search
 ```
 
 ## 🔒 Security & Privacy
@@ -446,6 +502,7 @@ https://www.googleapis.com/auth/drive.readonly
 https://www.googleapis.com/auth/userinfo.email
 https://www.googleapis.com/auth/chat.spaces.readonly  # For Google Chat integration
 https://www.googleapis.com/auth/chat.messages.readonly  # For Google Chat messages
+https://www.googleapis.com/auth/gmail.readonly  # For Gmail integration and attachment search
 ```
 
 ## 📈 Performance

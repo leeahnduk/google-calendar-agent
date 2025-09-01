@@ -220,7 +220,64 @@ def prepare_meeting_brief(tool_context: ToolContext):
 
 ---
 
-## 🚀 Latest Deployment - August 19, 2025
+## 🚀 Latest Deployment - January 2025
+
+**📋 Enhanced Meeting Brief with Comprehensive Document Search - Meeting_Prep_Agent_New (Updated):**
+- **Comprehensive Document Integration:** Enhanced meeting briefs now include extensive document search across multiple sources
+- **Gmail Integration:** Added Gmail API integration to search emails between attendees and extract attachments
+- **Advanced Drive Search:** Enhanced Google Drive search to find related documents beyond just meeting attachments
+- **AI-Powered Relevance Scoring:** Documents are now ranked by relevance to meeting context using AI analysis
+- **Comprehensive Document Table:** New detailed table showing all relevant documents with metadata, relevance scores, and direct links
+- **Multi-Source Document Discovery:** Searches across:
+  - Direct meeting attachments (highest priority)
+  - Gmail attachments from attendee communications
+  - Related documents in Google Drive
+- **Enhanced Document Analysis:** AI analyzes document content and provides comprehensive insights
+- **Technical Improvements:**
+  - Added Gmail API integration with email search capabilities
+  - Implemented document relevance scoring algorithm
+  - Enhanced document metadata extraction and formatting
+  - Added comprehensive document table generation
+  - Improved error handling for multi-API integration
+- **Deployment Status:** ✅ Ready for deployment
+- **Agent Resource:** `projects/777331773170/locations/us-central1/reasoningEngines/510305336683397120`
+
+**New Features Added:**
+1. **Gmail Integration:** Search emails between attendees for relevant attachments and documents
+2. **Comprehensive Drive Search:** Find related documents in Google Drive beyond just attachments
+3. **Document Relevance Scoring:** AI-powered ranking of documents by relevance to meeting context
+4. **Comprehensive Document Table:** Detailed table with document metadata, relevance scores, and direct links
+5. **Multi-Source Document Discovery:** Unified search across Gmail, Drive, and direct attachments
+6. **Enhanced Document Analysis:** AI analysis of document content for meeting preparation insights
+
+## 🚀 Previous Deployment - August 25, 2025
+
+**🎯 Enhanced Question Handling & AgentSpace Issue Resolution - Meeting_Prep_Agent_New (Updated):**
+- **Enhanced Capabilities:** Expanded agent to handle comprehensive calendar and meeting management queries
+- **Calendar Context:** Added automatic calendar overview showing today/tomorrow/week schedule in meeting briefs
+- **Advanced Chat Debugging:** Enhanced Google Chat integration with detailed debugging and troubleshooting information
+- **Broader Query Handling:** Agent now ALWAYS uses prepare_brief tool for ANY calendar question
+- **Enhanced Prompt:** Updated instruction to explicitly handle "How many meetings", "Show schedule", etc.
+- **AgentSpace Issue Resolution:** Identified and documented 404 error as AgentSpace frontend bug
+- **Technical Improvements:**
+  - Extended calendar lookback to 7 days for better context
+  - Added meeting pattern analysis and schedule insights
+  - Enhanced error handling and user guidance
+  - Improved Google Chat authentication troubleshooting
+  - Fixed instruction prompt to ensure broader question handling
+- **Deployment Status:** ✅ Successfully deployed and verified
+- **Agent Resource:** `projects/777331773170/locations/us-central1/reasoningEngines/510305336683397120`
+
+**Previous Features:**
+1. **Calendar Overview Integration:** Automatic display of upcoming meetings in briefs
+2. **Enhanced Chat Debugging:** Detailed Google Chat API status and troubleshooting info
+3. **Expanded Query Support:** Handles calendar management questions beyond just meeting briefs
+4. **Schedule Analysis:** Pattern recognition and conflict detection
+5. **Proactive Suggestions:** Smart recommendations for meeting prep and schedule optimization
+
+---
+
+## 🚀 Previous Deployment - August 19, 2025
 
 **🆕 New Agent Creation & AgentSpace Registration - Meeting_Prep_Agent_New (06:51:41 UTC):**
 - **Complete Solution:** Created and registered new agent `Meeting_Prep_Agent_New` in AgentSpace
