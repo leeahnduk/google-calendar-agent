@@ -1114,6 +1114,46 @@ Keep the response concise but informative, formatted in markdown.
     except Exception as e:
         gmail_service = None  # Gmail integration is optional
 
+    # Parse user query to determine if they want a specific meeting
+    user_query = tool_context.user_query.lower() if hasattr(tool_context, 'user_query') else ""
+    
+    # Check if user is asking for a specific meeting time
+    target_event = None
+    specific_time_requested = False
+    
+    # Look for time patterns in the query
+    time_patterns = [
+        r'(\d{1,2}):(\d{2})\s*(am|pm)',
+        r'(\d{1,2})\s*(am|pm)',
+        r'(\d{1,2}):(\d{2})',
+        r'at\s+(\d{1,2}):(\d{2})',
+        r'(\d{1,2}):(\d{2})\s*(am|pm)\s*meeting',
+        r'meeting\s*at\s*(\d{1,2}):(\d{2})',
+        r'(\d{1,2})\s*(am|pm)\s*meeting',
+        r'meeting\s*(\d{1,2})\s*(am|pm)'
+    ]
+    
+    import re
+    target_time = None
+    for pattern in time_patterns:
+        match = re.search(pattern, user_query)
+        if match:
+            specific_time_requested = True
+            groups = match.groups()
+            if len(groups) >= 2:
+                hour = int(groups[0])
+                minute = int(groups[1]) if groups[1] else 0
+                ampm = groups[2].lower() if len(groups) > 2 and groups[2] else None
+                
+                # Convert to 24-hour format
+                if ampm == 'pm' and hour != 12:
+                    hour += 12
+                elif ampm == 'am' and hour == 12:
+                    hour = 0
+                
+                target_time = f"{hour:02d}:{minute:02d}"
+                break
+    
     # Get upcoming events - expanded to next 7 days for broader calendar insights
     now = datetime.now(timezone.utc)
     time_min = now.isoformat()
@@ -1129,8 +1169,52 @@ Keep the response concise but informative, formatted in markdown.
         if not items:
             return {"panel_markdown": "## 📅 Calendar Overview\n\nNo upcoming meetings found in your calendar for the next 7 days.\n\n💡 **What I can help with:**\n- Schedule analysis and optimization\n- Meeting preparation for future events\n- Calendar management insights"}
 
-        # Get the first upcoming event with full details
-        event_id = items[0]["id"]
+        # Find the target event
+        if specific_time_requested and target_time:
+            # Look for meeting at specific time
+            for item in items:
+                start_time = item.get("start", {}).get("dateTime", "")
+                if start_time:
+                    try:
+                        event_datetime = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+                        event_time_str = event_datetime.strftime("%H:%M")
+                        if event_time_str == target_time:
+                            target_event = item
+                            break
+                    except:
+                        continue
+            
+            if not target_event:
+                # If no exact match, find the closest time
+                closest_event = None
+                min_diff = float('inf')
+                for item in items:
+                    start_time = item.get("start", {}).get("dateTime", "")
+                    if start_time:
+                        try:
+                            event_datetime = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+                            event_time_str = event_datetime.strftime("%H:%M")
+                            # Calculate time difference in minutes
+                            target_hour, target_minute = map(int, target_time.split(":"))
+                            event_hour, event_minute = map(int, event_time_str.split(":"))
+                            target_minutes = target_hour * 60 + target_minute
+                            event_minutes = event_hour * 60 + event_minute
+                            diff = abs(target_minutes - event_minutes)
+                            if diff < min_diff:
+                                min_diff = diff
+                                closest_event = item
+                        except:
+                            continue
+                
+                if closest_event and min_diff <= 30:  # Within 30 minutes
+                    target_event = closest_event
+        
+        # If no specific time requested or no match found, use the first upcoming event
+        if not target_event:
+            target_event = items[0]
+        
+        # Get the target event with full details
+        event_id = target_event["id"]
         ev = calendar_service.events().get(calendarId="primary", eventId=event_id).execute()
         
         attendees_raw = ev.get("attendees", [])
@@ -1226,7 +1310,17 @@ Keep the response concise but informative, formatted in markdown.
         # Add calendar overview section
         calendar_overview = _build_calendar_overview(items, now)
         
-        markdown = f"""# 📅 Meeting Brief
+        # Add note about which meeting was selected
+        selection_note = ""
+        if specific_time_requested and target_time:
+            if target_event:
+                selection_note = f"\n> 💡 **Selected Meeting**: Found meeting at {target_time} as requested\n"
+            else:
+                selection_note = f"\n> ⚠️ **Note**: No meeting found at {target_time}, showing next upcoming meeting instead\n"
+        elif specific_time_requested:
+            selection_note = f"\n> ⚠️ **Note**: Could not parse specific time from your request, showing next upcoming meeting\n"
+
+        markdown = f"""# 📅 Meeting Brief{selection_note}
 
 ## {event_context.summary}
 
@@ -1308,6 +1402,7 @@ You are a comprehensive meeting preparation and calendar management assistant. Y
 - Meeting attendee information
 - Document and attachment summaries
 - Time management suggestions
+- **Specific meeting requests by time**
 
 **Example responses for common questions:**
 
@@ -1323,11 +1418,22 @@ You are a comprehensive meeting preparation and calendar management assistant. Y
 *"What's my next meeting about?"*
 → ALWAYS use prepare_brief tool to get details about the upcoming meeting
 
+*"Generate meeting brief for my 2pm meeting"*
+→ ALWAYS use prepare_brief tool to get details about the specific 2pm meeting
+
+*"Prepare brief for the meeting at 5:30pm"*
+→ ALWAYS use prepare_brief tool to get details about the specific 5:30pm meeting
+
 *"Find meetings with [person]"*
 → ALWAYS use prepare_brief tool and analyze attendee information
 
 *"Do I have any conflicts tomorrow?"*
 → ALWAYS use prepare_brief tool and analyze the schedule for conflicts
+
+**Special Handling for Specific Meeting Requests:**
+- When users mention specific times (e.g., "2pm meeting", "meeting at 5:30pm"), the agent will automatically find and brief that specific meeting
+- The agent supports various time formats: "2pm", "2:30pm", "14:30", "meeting at 2pm", etc.
+- If no exact match is found, it will find the closest meeting within 30 minutes
 
 **Always be proactive**: If someone asks a simple calendar question, offer to prepare a meeting brief or provide additional helpful context.
 
