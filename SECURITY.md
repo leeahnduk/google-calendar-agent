@@ -83,7 +83,7 @@ refresh_token.json           # OAuth refresh tokens
 
 3. **Set Redirect URIs**:
    ```
-   https://vertexaisearch.cloud.google.com/oauth_callback
+   https://vertexaisearch.cloud.google.com/oauth-redirect
    ```
 
 ### Security Best Practices
