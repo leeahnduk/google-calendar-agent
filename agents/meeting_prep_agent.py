@@ -1010,19 +1010,6 @@ Keep the response concise but informative, formatted in markdown."""
 
         # Add calendar overview section
         calendar_overview = _build_calendar_overview(items, now)
-<<<<<<< HEAD
-        
-        # Add note about which meeting was selected
-        selection_note = ""
-        if specific_time_requested and target_time:
-            if target_event:
-                selection_note = f"\n> 💡 **Selected Meeting**: Found meeting at {target_time} as requested\n"
-            else:
-                selection_note = f"\n> ⚠️ **Note**: No meeting found at {target_time}, showing next upcoming meeting instead\n"
-        elif specific_time_requested:
-            selection_note = f"\n> ⚠️ **Note**: Could not parse specific time from your request, showing next upcoming meeting\n"
-=======
->>>>>>> main
 
         markdown = f"""# 📅 Meeting Brief{selection_note}
 
