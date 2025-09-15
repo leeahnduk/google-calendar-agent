@@ -73,7 +73,7 @@ def prepare_meeting_brief(tool_context: ToolContext):
     import re
     import vertexai
     from vertexai.generative_models import GenerativeModel
-
+    
     @dataclass
     class EventAttendee:
         email: str
@@ -91,7 +91,7 @@ def prepare_meeting_brief(tool_context: ToolContext):
         html_link: Optional[str] = None
         location: Optional[str] = None
         attachments: List[Dict] = None
-
+    
     @dataclass
     class DriveDocument:
         id: str
@@ -104,7 +104,7 @@ def prepare_meeting_brief(tool_context: ToolContext):
         last_modified: str = ""
         size: str = ""
         owner: str = ""
-
+    
     @dataclass
     class GmailAttachment:
         filename: str
@@ -112,17 +112,17 @@ def prepare_meeting_brief(tool_context: ToolContext):
         size: int
         attachment_id: str
         message_id: str
-
+    
     def _to_iso(dt_str: str) -> str:
         try:
             return datetime.fromisoformat(dt_str.replace("Z", "+00:00")).astimezone(timezone.utc).isoformat()
         except Exception:
             return dt_str
-
+    
     def _extract_drive_file_ids(event_data: Dict) -> List[str]:
         """Extract Google Drive file IDs from event attachments and description"""
         file_ids = []
-
+        
         # From attachments
         attachments = event_data.get("attachments", [])
         for att in attachments:
@@ -135,7 +135,7 @@ def prepare_meeting_brief(tool_context: ToolContext):
                 match = re.search(r"/file/d/([a-zA-Z0-9-_]+)", file_url)
                 if match:
                     file_ids.append(match.group(1))
-
+        
         # From description URLs
         description = event_data.get("description", "") or ""
         drive_urls = re.findall(r"https://drive\.google\.com/[^\s]+", description)
@@ -143,41 +143,41 @@ def prepare_meeting_brief(tool_context: ToolContext):
             match = re.search(r"/file/d/([a-zA-Z0-9-_]+)", url)
             if match:
                 file_ids.append(match.group(1))
-
+        
         return list(set(file_ids))  # Remove duplicates
-
+    
     def _search_related_drive_documents(drive_service, meeting_title: str, attendee_emails: List[str], description: str = "") -> List[DriveDocument]:
         """Search Google Drive for documents related to the meeting"""
         try:
             related_docs = []
-
+            
             # Extract keywords from meeting title and description
             keywords = []
             if meeting_title:
                 # Split title into meaningful words
                 title_words = re.findall(r'\b\w+\b', meeting_title.lower())
                 keywords.extend([word for word in title_words if len(word) > 3])
-
+            
             if description:
                 desc_words = re.findall(r'\b\w+\b', description.lower())
                 keywords.extend([word for word in desc_words if len(word) > 3])
-
+            
             # Remove common words and duplicates
             common_words = {'meeting', 'call', 'sync', 'review', 'discussion', 'update', 'status', 'weekly', 'daily', 'monthly', 'team', 'project', 'with', 'for', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'from', 'by', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'up', 'down', 'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once'}
             keywords = list(set([kw for kw in keywords if kw not in common_words]))
-
+            
             # Search queries to try
             search_queries = []
-
+            
             # Add meeting title as search query
             if meeting_title:
                 search_queries.append(f"name contains '{meeting_title}'")
-
+            
             # Add keyword-based searches
             for keyword in keywords[:5]:  # Limit to top 5 keywords
                 search_queries.append(f"name contains '{keyword}'")
                 search_queries.append(f"fullText contains '{keyword}'")
-
+            
             # Add attendee-based searches (if we have attendee emails)
             for email in attendee_emails[:3]:  # Limit to top 3 attendees
                 if email:
@@ -185,7 +185,7 @@ def prepare_meeting_brief(tool_context: ToolContext):
                     name_part = email.split('@')[0].replace('.', ' ').replace('_', ' ')
                     if name_part:
                         search_queries.append(f"fullText contains '{name_part}'")
-
+            
             # Execute searches
             for query in search_queries[:10]:  # Limit total queries
                 try:
@@ -195,12 +195,12 @@ def prepare_meeting_brief(tool_context: ToolContext):
                         fields="files(id,name,mimeType,webViewLink,modifiedTime,size,owners)",
                         orderBy="modifiedTime desc"
                     ).execute()
-
+                    
                     for file_data in results.get('files', []):
                         # Skip if we already have this file
                         if any(doc.id == file_data['id'] for doc in related_docs):
                             continue
-
+                        
                         doc = DriveDocument(
                             id=file_data['id'],
                             name=file_data.get('name', 'Unknown'),
@@ -209,30 +209,30 @@ def prepare_meeting_brief(tool_context: ToolContext):
                             content=""  # Will be filled later if needed
                         )
                         related_docs.append(doc)
-
+                        
                         # Limit total results
                         if len(related_docs) >= 15:
                             break
-
+                    
                     if len(related_docs) >= 15:
                         break
-
+                        
                 except Exception:
                     continue  # Skip failed queries
-
+            
             return related_docs[:15]  # Return top 15 results
-
+            
         except Exception as e:
             return []
-
+    
     def _search_gmail_attachments(gmail_service, meeting_title: str, attendee_emails: List[str], description: str = "") -> List[DriveDocument]:
         """Search Gmail for emails between attendees and extract attachments"""
         try:
             gmail_docs = []
-
+            
             # Build search queries for Gmail
             search_queries = []
-
+            
             # Search for emails between attendees
             if len(attendee_emails) >= 2:
                 for i, email1 in enumerate(attendee_emails[:3]):  # Limit to avoid too many queries
@@ -240,7 +240,7 @@ def prepare_meeting_brief(tool_context: ToolContext):
                         if email1 and email2:
                             search_queries.append(f"from:{email1} to:{email2}")
                             search_queries.append(f"from:{email2} to:{email1}")
-
+            
             # Search for emails with meeting title keywords
             if meeting_title:
                 title_words = re.findall(r'\b\w+\b', meeting_title.lower())
@@ -248,10 +248,10 @@ def prepare_meeting_brief(tool_context: ToolContext):
                 for word in meaningful_words[:3]:  # Limit keywords
                     search_queries.append(f'subject:"{word}"')
                     search_queries.append(f'"{word}"')
-
+            
             # Search for emails with attachments
             search_queries.append("has:attachment")
-
+            
             # Execute Gmail searches
             for query in search_queries[:8]:  # Limit total queries
                 try:
@@ -261,9 +261,9 @@ def prepare_meeting_brief(tool_context: ToolContext):
                         q=query,
                         maxResults=10
                     ).execute()
-
+                    
                     messages = results.get('messages', [])
-
+                    
                     for message in messages:
                         try:
                             # Get message details
@@ -272,11 +272,11 @@ def prepare_meeting_brief(tool_context: ToolContext):
                                 id=message['id'],
                                 format='full'
                             ).execute()
-
+                            
                             # Extract attachments
                             payload = msg.get('payload', {})
                             attachments = []
-
+                            
                             def extract_attachments_from_payload(payload):
                                 if 'parts' in payload:
                                     for part in payload['parts']:
@@ -301,15 +301,15 @@ def prepare_meeting_brief(tool_context: ToolContext):
                                         message_id=message['id']
                                     )
                                     attachments.append(attachment)
-
+                            
                             extract_attachments_from_payload(payload)
-
+                            
                             # Convert Gmail attachments to DriveDocument format
                             for attachment in attachments:
                                 if attachment.filename and attachment.size > 0:
                                     # Create a pseudo Drive link for Gmail attachments
                                     gmail_link = f"https://mail.google.com/mail/u/0/#inbox/{message['id']}"
-
+                                    
                                     doc = DriveDocument(
                                         id=f"gmail_{attachment.attachment_id}",
                                         name=attachment.filename,
@@ -323,54 +323,54 @@ def prepare_meeting_brief(tool_context: ToolContext):
                                         owner="Gmail"
                                     )
                                     gmail_docs.append(doc)
-
+                                    
                                     # Limit results
                                     if len(gmail_docs) >= 10:
                                         break
-
+                            
                             if len(gmail_docs) >= 10:
                                 break
-
+                                
                         except Exception:
                             continue  # Skip problematic messages
-
+                    
                     if len(gmail_docs) >= 10:
                         break
-
+                        
                 except Exception:
                     continue  # Skip failed queries
-
+            
             return gmail_docs[:10]  # Return top 10 Gmail attachments
-
+            
         except Exception as e:
             return []
-
+    
     def _calculate_document_relevance(docs: List[DriveDocument], meeting_title: str, meeting_description: str, attendee_emails: List[str]) -> List[DriveDocument]:
         """Calculate relevance scores for documents based on meeting context"""
         try:
             # Extract keywords from meeting context
             meeting_text = f"{meeting_title} {meeting_description}".lower()
             meeting_words = set(re.findall(r'\b\w+\b', meeting_text))
-
+            
             # Remove common words
             common_words = {'meeting', 'call', 'sync', 'review', 'discussion', 'update', 'status', 'weekly', 'daily', 'monthly', 'team', 'project', 'with', 'for', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'from', 'by', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'up', 'down', 'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once'}
             meeting_words = meeting_words - common_words
-
+            
             # Calculate relevance for each document
             for doc in docs:
                 score = 0.0
-
+                
                 # Title matching
                 doc_title_words = set(re.findall(r'\b\w+\b', doc.name.lower()))
                 title_overlap = len(meeting_words.intersection(doc_title_words))
                 score += title_overlap * 2.0  # Higher weight for title matches
-
+                
                 # Content matching (if available)
                 if doc.content:
                     doc_content_words = set(re.findall(r'\b\w+\b', doc.content.lower()))
                     content_overlap = len(meeting_words.intersection(doc_content_words))
                     score += content_overlap * 1.0
-
+                
                 # Source preference
                 if doc.source == "attachment":
                     score += 3.0  # Highest priority for direct attachments
@@ -378,7 +378,7 @@ def prepare_meeting_brief(tool_context: ToolContext):
                     score += 2.0  # High priority for Gmail attachments
                 elif doc.source == "drive":
                     score += 1.0  # Standard priority for Drive search
-
+                
                 # File type preference
                 if "document" in doc.mime_type or "presentation" in doc.mime_type:
                     score += 1.5
@@ -386,38 +386,45 @@ def prepare_meeting_brief(tool_context: ToolContext):
                     score += 1.0
                 elif "pdf" in doc.mime_type:
                     score += 0.5
-
+                
                 # Attendee relevance (if document name contains attendee names)
                 for email in attendee_emails:
                     if email:
                         name_part = email.split('@')[0].replace('.', ' ').replace('_', ' ')
                         if name_part.lower() in doc.name.lower():
                             score += 1.0
-
+                
                 doc.relevance_score = score
-
+            
             # Sort by relevance score
             docs.sort(key=lambda x: x.relevance_score, reverse=True)
             return docs
-
+            
         except Exception:
             return docs  # Return original list if scoring fails
-
+    
     def _build_comprehensive_document_table(documents: List[DriveDocument]) -> str:
         """Build a comprehensive table of relevant documents and resources"""
         if not documents:
             return "## 📋 Relevant Documents & Resources\n\nNo relevant documents found for this meeting."
-
-        # Create a simpler, more presentation-friendly format
-        content = "## 📋 Relevant Documents & Resources\n\n"
         
-        for i, doc in enumerate(documents[:10], 1):  # Show top 10 most relevant documents
-            # Format document name (truncate if too long)
-            doc_name = doc.name[:60] + "..." if len(doc.name) > 60 else doc.name
+        # Create the table header
+        table_header = """## 📋 Relevant Documents & Resources
 
-            # Format file type with emoji
-            file_type = "📄 Document"
-            if "spreadsheet" in doc.mime_type:
+| Document Name | Type | Source | Relevance | Last Modified | Size | Link |
+|---------------|------|--------|-----------|---------------|------|------|"""
+        
+        table_rows = []
+        
+        for doc in documents[:15]:  # Show top 15 most relevant documents
+            # Format document name (truncate if too long)
+            doc_name = doc.name[:50] + "..." if len(doc.name) > 50 else doc.name
+            
+            # Format file type
+            file_type = "Unknown"
+            if "document" in doc.mime_type:
+                file_type = "📄 Document"
+            elif "spreadsheet" in doc.mime_type:
                 file_type = "📊 Spreadsheet"
             elif "presentation" in doc.mime_type:
                 file_type = "📽️ Presentation"
@@ -427,22 +434,25 @@ def prepare_meeting_brief(tool_context: ToolContext):
                 file_type = "🖼️ Image"
             elif "text" in doc.mime_type:
                 file_type = "📝 Text"
-            elif "folder" in doc.mime_type:
-                file_type = "📁 Folder"
             else:
-                file_type = f"📎 {doc.mime_type.split('/')[-1].upper()}" if doc.mime_type else "📎 File"
-
+                file_type = f"📎 {doc.mime_type.split('/')[-1].upper()}"
+            
             # Format source
             source_emoji = {
                 "attachment": "📎 Direct",
-                "gmail": "📧 Gmail", 
+                "gmail": "📧 Gmail",
                 "drive": "💾 Drive"
             }.get(doc.source, "❓ Unknown")
-
+            
             # Format relevance score
             relevance_stars = "⭐" * min(5, int(doc.relevance_score))
-            relevance_text = "High" if doc.relevance_score >= 4 else "Medium" if doc.relevance_score >= 2 else "Low"
-
+            if doc.relevance_score >= 4:
+                relevance_display = f"{relevance_stars} High"
+            elif doc.relevance_score >= 2:
+                relevance_display = f"{relevance_stars} Medium"
+            else:
+                relevance_display = f"{relevance_stars} Low"
+            
             # Format last modified
             last_modified = "Unknown"
             if doc.last_modified:
@@ -457,7 +467,7 @@ def prepare_meeting_brief(tool_context: ToolContext):
                         last_modified = datetime.fromisoformat(doc.last_modified.replace('Z', '+00:00')).strftime("%Y-%m-%d")
                 except:
                     last_modified = "Unknown"
-
+            
             # Format size
             size_display = "Unknown"
             if doc.size:
@@ -471,18 +481,20 @@ def prepare_meeting_brief(tool_context: ToolContext):
                         size_display = f"{size_bytes // (1024 * 1024)} MB"
                 except:
                     size_display = doc.size
-
-            # Create document entry with better formatting
-            content += f"### {i}. [{doc_name}]({doc.link})\n"
-            content += f"**Type:** {file_type} | **Source:** {source_emoji} | **Relevance:** {relevance_stars} {relevance_text}\n"
-            content += f"**Modified:** {last_modified} | **Size:** {size_display}\n\n"
-
+            
+            # Create table row
+            row = f"| {doc_name} | {file_type} | {source_emoji} | {relevance_display} | {last_modified} | {size_display} | [Open]({doc.link}) |"
+            table_rows.append(row)
+        
+        # Combine header and rows
+        table_content = table_header + "\n" + "\n".join(table_rows)
+        
         # Add summary statistics
         source_counts = {}
         for doc in documents:
             source_counts[doc.source] = source_counts.get(doc.source, 0) + 1
-
-        summary = f"**📊 Summary:** {len(documents)} relevant documents found"
+        
+        summary = f"\n\n**📊 Summary:** {len(documents)} relevant documents found"
         if source_counts:
             summary += " ("
             summary_parts = []
@@ -490,22 +502,22 @@ def prepare_meeting_brief(tool_context: ToolContext):
                 source_name = {"attachment": "Direct attachments", "gmail": "Gmail attachments", "drive": "Drive documents"}.get(source, source)
                 summary_parts.append(f"{count} {source_name}")
             summary += ", ".join(summary_parts) + ")"
-
-        return content + summary
-
+        
+        return table_content + summary
+    
     def _get_drive_document_content(drive_service, file_id: str) -> DriveDocument:
         """Get Drive document metadata and content"""
         try:
             # Get file metadata
             file_meta = drive_service.files().get(fileId=file_id, fields="id,name,mimeType,webViewLink").execute()
-
+            
             doc = DriveDocument(
                 id=file_id,
                 name=file_meta.get("name", "Unknown"),
                 link=file_meta.get("webViewLink", f"https://drive.google.com/file/d/{file_id}/view"),
                 mime_type=file_meta.get("mimeType", "")
             )
-
+            
             # Try to get content for various file types
             try:
                 if "document" in doc.mime_type or "google-apps.document" in doc.mime_type:
@@ -531,9 +543,9 @@ def prepare_meeting_brief(tool_context: ToolContext):
                     doc.content = f"File type '{doc.mime_type}' - Content preview not available"
             except Exception as e:
                 doc.content = f"Content could not be extracted: {str(e)}"
-
+            
             return doc
-
+            
         except Exception as e:
             return DriveDocument(
                 id=file_id,
@@ -541,17 +553,17 @@ def prepare_meeting_brief(tool_context: ToolContext):
                 link=f"https://drive.google.com/file/d/{file_id}/view",
                 content=f"Error accessing document: {str(e)}"
             )
-
+    
     def _analyze_attachments_with_gemini(attachments: List[DriveDocument], meeting_title: str) -> str:
         """Use Gemini to analyze meeting attachments and provide insights"""
         try:
             if not attachments:
                 return "No attachments to analyze."
-
+            
             # Initialize Vertex AI and Gemini
             vertexai.init(project=google_cloud_project, location=google_cloud_location)
             model = GenerativeModel("gemini-2.5-flash")
-
+            
             # Prepare attachment content for analysis
             attachment_info = ""
             for doc in attachments:
@@ -562,7 +574,7 @@ def prepare_meeting_brief(tool_context: ToolContext):
                 else:
                     attachment_info += f"Content: {doc.content}\n"
                 attachment_info += "---\n"
-
+            
             analysis_prompt = f"""
 Analyze these meeting attachments for the upcoming meeting "{meeting_title}":
 
@@ -577,28 +589,29 @@ Please provide a comprehensive analysis including:
 5. **Preparation Insights**: What attendees should focus on or prepare based on these documents
 6. **Questions to Consider**: Relevant questions that might arise from reviewing these materials
 
-Format your response in clear markdown sections. Be specific and actionable in your analysis."""
-
+Format your response in clear markdown sections. Be specific and actionable in your analysis.
+"""
+            
             response = model.generate_content(analysis_prompt)
             return response.text
-
+            
         except Exception as e:
             return f"Attachment analysis unavailable: {str(e)}"
-
+    
     def _get_historical_context(calendar_service, event_context: EventContext) -> str:
         """Get historical context for recurring meetings"""
         try:
             if not event_context.recurring_event_id:
                 return "This is not a recurring meeting - no historical context available."
-
+            
             # Search for past instances of this recurring meeting
             from datetime import datetime, timedelta, timezone
-
+            
             # Look back 60 days for previous instances
             now = datetime.now(timezone.utc)
             time_min = (now - timedelta(days=60)).isoformat()
             time_max = now.isoformat()
-
+            
             events_result = calendar_service.events().list(
                 calendarId="primary",
                 timeMin=time_min,
@@ -606,27 +619,25 @@ Format your response in clear markdown sections. Be specific and actionable in y
                 singleEvents=True,
                 orderBy="startTime"
             ).execute()
-
+            
             # Find previous instances of this recurring meeting
             past_instances = []
             for item in events_result.get("items", []):
-                if (
-                    item.get("recurringEventId") == event_context.recurring_event_id and
-                    item.get("id") != event_context.id
-                ):
+                if (item.get("recurringEventId") == event_context.recurring_event_id and 
+                    item.get("id") != event_context.id):
                     past_instances.append(item)
-
+            
             if not past_instances:
                 return "No previous instances of this recurring meeting found in the last 60 days."
-
+            
             # Get the most recent instance
             most_recent = past_instances[-1] if past_instances else None
             if not most_recent:
                 return "No previous instances found."
-
+            
             recent_date = most_recent.get("start", {}).get("dateTime", "Unknown date")
             recent_description = most_recent.get("description", "No description available")
-
+            
             historical_summary = f"""
 ## 📚 Historical Context (Recurring Meeting)
 
@@ -635,35 +646,374 @@ Format your response in clear markdown sections. Be specific and actionable in y
 
 **Meeting History**: This meeting has occurred {len(past_instances)} time(s) in the last 60 days.
 
-*Note: For detailed notes from previous sessions, check your meeting notes repository or shared documents.*"""
+*Note: For detailed notes from previous sessions, check your meeting notes repository or shared documents.*
+"""
             return historical_summary
-
+            
         except Exception as e:
             return f"Historical context unavailable: {str(e)}"
+    
+    def _get_chat_context(meeting_title: str, attendee_emails: List[str], creds: Credentials) -> str:
+        """Get chat context from Slack and/or Google Chat based on meeting title and attendees"""
+        chat_sections = []
+        
+        # Load settings directly with environment variables (AgentSpace compatible)
+        import os
+        
+        def _get_env(name: str, default: str = "") -> str:
+            return os.getenv(name, default)
+        
+        # Get chat integration settings - Default to enabling Google Chat
+        google_chat_enabled = _get_env("GOOGLE_CHAT_ENABLED", "true").lower() == "true"
+        chat_integration_preference = _get_env("CHAT_INTEGRATION_PREFERENCE", "both")
+        
+        # Slack Integration
+        if chat_integration_preference in ["slack", "both"]:
+            try:
+                # Inline Slack integration (AgentSpace compatible)
+                slack_bot_token = _get_env("SLACK_BOT_TOKEN", "")
+                
+                slack_messages = []
+                if slack_bot_token:
+                    try:
+                        from slack_sdk import WebClient
+                        from slack_sdk.errors import SlackApiError
+                        
+                        client = WebClient(token=slack_bot_token)
+                        channel_cand = f"#{meeting_title.lower().replace(' ', '-')}"
+                        
+                        # Get channels
+                        res = client.conversations_list(limit=1000)
+                        channels = res.get("channels", [])
+                        
+                        # Find matching channel
+                        channel_id = None
+                        for ch in channels:
+                            if ch.get("name", "").lower() == channel_cand.strip("#"):
+                                channel_id = ch.get("id")
+                                break
+                        
+                        # Get messages if channel found
+                        if channel_id:
+                            res = client.conversations_history(channel=channel_id, limit=20)
+                            for m in res.get("messages", []):
+                                slack_messages.append({
+                                    'ts': m.get("ts", ""),
+                                    'user': m.get("user", ""),
+                                    'text': m.get("text", ""),
+                                    'channel': channel_cand,
+                                    'permalink': f"https://slack.com/app_redirect?channel={channel_id}&message_ts={m.get('ts','')}"
+                                })
+                                
+                    except Exception:
+                        pass  # Slack integration is optional
+                
+                if slack_messages:
+                    # Analyze messages with AI for relevance
+                    vertexai.init(project=google_cloud_project, location=google_cloud_location)
+                    model = GenerativeModel("gemini-2.5-flash")
+                    
+                    messages_text = ""
+                    for msg in slack_messages[:10]:  # Limit to most recent 10 messages
+                        messages_text += f"**@{msg['user']}**: {msg['text']}\n"
+                    
+                    slack_analysis_prompt = f"""
+Analyze these recent Slack messages from the channel related to the meeting "{meeting_title}":
 
+{messages_text}
+
+Please provide:
+1. **Key Discussion Points**: Main topics being discussed
+2. **Recent Updates**: Any important updates or decisions
+3. **Action Items**: Tasks or follow-ups mentioned
+4. **Relevance**: How these discussions relate to the upcoming meeting
+
+Keep the response concise and focused on meeting preparation.
+"""
+                    
+                    response = model.generate_content(slack_analysis_prompt)
+                    
+                    slack_section = f"""
+## 💬 Slack Context
+
+**Channel**: {slack_messages[0]['channel'] if slack_messages else "Unknown"}
+**Recent Messages**: {len(slack_messages)} messages in the last 7 days
+
+{response.text}
+
+**Direct Links**:
+{chr(10).join([f"- [Message from @{msg['user']}]({msg['permalink']})" for msg in slack_messages[:3]])}
+"""
+                    chat_sections.append(slack_section)
+                else:
+                    # Try to infer channel name from meeting title
+                    potential_channels = []
+                    title_words = meeting_title.lower().split()
+                    
+                    # Common patterns for channel naming
+                    for word in title_words:
+                        if len(word) > 3:  # Skip short words
+                            potential_channels.append(f"#{word}")
+                            potential_channels.append(f"#{word.replace(' ', '-')}")
+                    
+                    slack_section = f"""
+## 💬 Slack Context
+
+No recent messages found in channels related to "{meeting_title}".
+
+**Suggested channels to check manually:**
+{chr(10).join([f"- {channel}" for channel in potential_channels[:3]])}
+
+*Note: Slack integration requires proper bot token configuration.*
+"""
+                    chat_sections.append(slack_section)
+                    
+            except Exception as e:
+                slack_section = f"""
+## 💬 Slack Context
+
+Unable to fetch Slack context: {str(e)}
+
+*Note: Slack integration requires:*
+- Valid SLACK_BOT_TOKEN in environment variables
+- Bot permissions to read channels
+- Channel naming that matches meeting title patterns
+"""
+                chat_sections.append(slack_section)
+        
+        # Google Chat Integration
+        if chat_integration_preference in ["google_chat", "both"] and google_chat_enabled:
+            try:
+                # Inline Google Chat integration (AgentSpace compatible)
+                from datetime import datetime, timedelta
+                
+                def _fetch_google_chat_messages():
+                    """Inline Google Chat fetching"""
+                    try:
+                        from googleapiclient.discovery import build
+                        from googleapiclient.errors import HttpError
+                        
+                        service = build('chat', 'v1', credentials=creds)
+                        
+                        # Get all spaces
+                        spaces_result = service.spaces().list().execute()
+                        spaces_data = spaces_result.get('spaces', [])
+                        
+                        all_messages = []
+                        cutoff_time = datetime.now() - timedelta(days=7)
+                        
+                        # Find relevant spaces and get messages
+                        title_words = set(word.lower().strip() for word in meeting_title.split() if len(word) > 2)
+                        
+                        for space_data in spaces_data:
+                            space_name = space_data.get('name', '')
+                            space_display_name = space_data.get('displayName', '')
+                            space_type = space_data.get('type', '')
+                            
+                            # Check if space is relevant
+                            is_relevant = False
+                            if space_type == 'DM':
+                                is_relevant = True  # Check all DMs
+                            else:
+                                # Check if space name contains meeting keywords
+                                space_words = set(word.lower().strip() for word in space_display_name.split())
+                                if title_words.intersection(space_words):
+                                    is_relevant = True
+                            
+                            if is_relevant:
+                                try:
+                                    # Get messages from this space
+                                    messages_result = service.spaces().messages().list(
+                                        parent=space_name,
+                                        pageSize=20,
+                                        orderBy='createTime desc'
+                                    ).execute()
+                                    
+                                    messages_data = messages_result.get('messages', [])
+                                    
+                                    for msg_data in messages_data:
+                                        # Parse message creation time
+                                        create_time_str = msg_data.get('createTime', '')
+                                        try:
+                                            create_time = datetime.fromisoformat(create_time_str.replace('Z', '+00:00'))
+                                            if create_time < cutoff_time:
+                                                continue  # Skip old messages
+                                        except ValueError:
+                                            continue
+                                        
+                                        # Extract message details
+                                        sender_info = msg_data.get('sender', {})
+                                        sender_name = (
+                                            sender_info.get('displayName', '') or 
+                                            sender_info.get('name', '').split('/')[-1] or 
+                                            'Unknown'
+                                        )
+                                        
+                                        message_text = msg_data.get('text', '')
+                                        
+                                        # Basic relevance check
+                                        message_words = set(word.lower().strip() for word in message_text.split())
+                                        if title_words.intersection(message_words) or len(message_text.strip()) > 10:
+                                            all_messages.append({
+                                                'sender': sender_name,
+                                                'text': message_text,
+                                                'create_time': create_time_str,
+                                                'space': space_display_name
+                                            })
+                                        
+                                except HttpError:
+                                    continue  # Skip spaces we can't access
+                        
+                        # Sort by creation time and limit results
+                        all_messages.sort(key=lambda m: m['create_time'], reverse=True)
+                        return all_messages[:20]
+                        
+                    except Exception:
+                        return []
+                
+                # Get messages from Google Chat
+                chat_messages = _fetch_google_chat_messages()
+                
+                if chat_messages:
+                    # Analyze messages with AI for relevance
+                    vertexai.init(project=google_cloud_project, location=google_cloud_location)
+                    model = GenerativeModel("gemini-2.5-flash")
+                    
+                    messages_text = ""
+                    spaces_mentioned = set()
+                    for msg in chat_messages[:10]:  # Limit to most recent 10 messages
+                        messages_text += f"**{msg['sender']}** (in {msg['space']}): {msg['text']}\n"
+                        spaces_mentioned.add(msg['space'])
+                    
+                    chat_analysis_prompt = f"""
+Analyze these recent Google Chat messages related to the meeting "{meeting_title}":
+
+{messages_text}
+
+Please provide:
+1. **Key Discussion Points**: Main topics being discussed
+2. **Recent Updates**: Any important updates or decisions
+3. **Action Items**: Tasks or follow-ups mentioned
+4. **Relevance**: How these discussions relate to the upcoming meeting
+
+Keep the response concise and focused on meeting preparation.
+"""
+                    
+                    response = model.generate_content(chat_analysis_prompt)
+                    
+                    chat_section = f"""
+## 💬 Google Chat Context
+
+**Spaces involved**: {', '.join(list(spaces_mentioned)[:3])}
+**Recent Messages**: {len(chat_messages)} messages in the last 7 days
+
+{response.text}
+
+**Message Timeline**:
+{chr(10).join([f"- **{msg['sender']}**: {msg['text'][:100]}{'...' if len(msg['text']) > 100 else ''} _(in {msg['space']})_" for msg in chat_messages[:3]])}
+"""
+                    chat_sections.append(chat_section)
+                else:
+                    chat_section = f"""
+## 💬 Google Chat Context
+
+No recent Google Chat messages found related to "{meeting_title}" with the meeting attendees.
+
+*Note: This searches through:*
+- Direct messages with attendees
+- Group chats involving attendees
+- Conversations mentioning meeting topics
+"""
+                    chat_sections.append(chat_section)
+                    
+            except Exception as e:
+                error_details = str(e)
+                chat_section = f"""
+## 💬 Google Chat Context
+
+❌ **Error:** Unable to fetch Google Chat context
+
+**Error Details:** {error_details}
+
+**Troubleshooting:**
+- If error mentions "403" or "insufficient permissions": OAuth needs Google Chat scopes
+- If error mentions "API not enabled": Enable Google Chat API in Cloud Console
+- If error mentions "credentials": Check OAuth authorization status
+
+**Required for Google Chat:**
+- OAuth2 credentials with Chat API access
+- Scopes: `chat.spaces.readonly` and `chat.messages.readonly`
+- Google Chat API enabled in Cloud Console
+- GOOGLE_CHAT_ENABLED=true in environment
+
+**Next Steps:** Reauthenticate with Google Chat permissions
+"""
+                chat_sections.append(chat_section)
+        
+        # If no integrations are configured or add debug info
+        if not chat_sections:
+            debug_info = f"""
+## 💬 Chat Context
+
+No chat integrations are currently enabled.
+
+**Debug Information:**
+- GOOGLE_CHAT_ENABLED: {google_chat_enabled}
+- CHAT_INTEGRATION_PREFERENCE: {chat_integration_preference}
+- Slack token configured: {bool(_get_env("SLACK_BOT_TOKEN", ""))}
+
+**Available integrations:**
+- Slack: Set SLACK_BOT_TOKEN and CHAT_INTEGRATION_PREFERENCE
+- Google Chat: Set GOOGLE_CHAT_ENABLED=true and CHAT_INTEGRATION_PREFERENCE
+
+*Current preference: {chat_integration_preference}*
+"""
+            chat_sections.append(debug_info)
+        
+        # Always add debug section when Google Chat is enabled but no messages found
+        if google_chat_enabled and chat_integration_preference in ["google_chat", "both"]:
+            if not any("Google Chat Context" in section for section in chat_sections):
+                debug_section = f"""
+## 💬 Google Chat Debug
+
+**Configuration Status:** ✅ Google Chat is enabled
+- GOOGLE_CHAT_ENABLED: {google_chat_enabled}
+- CHAT_INTEGRATION_PREFERENCE: {chat_integration_preference}
+- Meeting Title: "{meeting_title}"
+- Attendees: {len(attendee_emails)} attendee(s)
+
+**Possible Issues:**
+- OAuth permissions for Google Chat API not granted
+- No Google Chat conversations found related to this meeting
+- Google Chat API access denied
+"""
+                chat_sections.append(debug_section)
+        
+        return "\n".join(chat_sections)
+    
     def _build_calendar_overview(all_events: List[Dict], current_time: datetime) -> str:
         """Build a calendar overview showing upcoming meetings"""
         try:
             if len(all_events) <= 1:
                 return ""
-
+            
             # Categorize events by timeframe
             today_events = []
             tomorrow_events = []
             week_events = []
-
+            
             today_start = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
             tomorrow_start = today_start + timedelta(days=1)
             week_end = today_start + timedelta(days=7)
-
+            
             for event in all_events[1:]:  # Skip first event (main meeting)
                 start_str = event.get("start", {}).get("dateTime") or event.get("start", {}).get("date")
                 if not start_str:
                     continue
-
+                    
                 try:
                     event_time = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
-
+                    
                     if today_start <= event_time < tomorrow_start:
                         today_events.append(event)
                     elif tomorrow_start <= event_time < tomorrow_start + timedelta(days=1):
@@ -672,9 +1022,9 @@ Format your response in clear markdown sections. Be specific and actionable in y
                         week_events.append(event)
                 except:
                     continue
-
+            
             overview_sections = []
-
+            
             # Today's remaining meetings
             if today_events:
                 overview_sections.append(f"**📅 Today ({current_time.strftime('%A, %B %d')})** - {len(today_events)} more meeting(s):")
@@ -687,7 +1037,7 @@ Format your response in clear markdown sections. Be specific and actionable in y
                     except:
                         time_str = "Time TBD"
                     overview_sections.append(f"  - {time_str}: {summary}")
-
+            
             # Tomorrow's meetings
             if tomorrow_events:
                 tomorrow_date = (current_time + timedelta(days=1)).strftime('%A, %B %d')
@@ -701,27 +1051,27 @@ Format your response in clear markdown sections. Be specific and actionable in y
                     except:
                         time_str = "Time TBD"
                     overview_sections.append(f"  - {time_str}: {summary}")
-
+            
             # Week summary
             total_week_meetings = len(today_events) + len(tomorrow_events) + len(week_events) + 1  # +1 for current meeting
             if total_week_meetings > 1:
                 overview_sections.append(f"**📊 This Week Summary:** {total_week_meetings} total meetings")
-
+            
             if overview_sections:
                 return "## 📅 Calendar Context\n\n" + "\n".join(overview_sections) + "\n"
             else:
                 return ""
-
+                
         except Exception:
             return ""
-
+    
     def _research_with_gemini(meeting_title: str, description: str, attendees: List[str]) -> str:
         """Use Gemini to research meeting context and provide insights"""
         try:
             # Initialize Vertex AI and Gemini
             vertexai.init(project=google_cloud_project, location=google_cloud_location)
             model = GenerativeModel("gemini-2.5-flash")
-
+            
             research_prompt = f"""
 Analyze this upcoming meeting and provide helpful context and insights:
 
@@ -736,81 +1086,28 @@ Please provide:
 4. Suggested questions or discussion points
 5. Any notable patterns or insights about this type of meeting
 
-Keep the response concise but informative, formatted in markdown."""
-
+Keep the response concise but informative, formatted in markdown.
+"""
+            
             response = model.generate_content(research_prompt)
             return response.text
-
+            
         except Exception as e:
             return f"AI research unavailable: {str(e)}"
-
-    def _parse_time_request(user_query: str) -> Optional[datetime]:
-        """Parse user query to extract specific time request. Handles formats like 4:00p.m, 4:00 p.m, 4p.m, 4 p.m, 4 pm, 4 am."""
-        import re
-        from datetime import datetime, timedelta
-
-        query = user_query.lower()
-
-        # Patterns to detect time, with and without 'at'
-        time_patterns = [
-            r'(\d{1,2}):(\d{2})\s*(a\.?.m\.?.|p\.?.m\.?)', # 4:00p.m, 4:00 p.m.
-            r'(\d{1,2})\s*(a\.?.m\.?.|p\.?.m\.?)',       # 4p.m, 4 pm
-        ]
-
-        target_time = None
-        for pattern in time_patterns:
-            # Also check for 'at 2pm' style
-            for prefix in [r'at\s+', '']:
-                full_pattern = prefix + pattern
-                match = re.search(full_pattern, query)
-                if match:
-                    groups = match.groups()
-                    hour = int(groups[0])
-
-                    if ':' in pattern:
-                        minute = int(groups[1])
-                        ampm_raw = groups[2]
-                    else:
-                        minute = 0
-                        ampm_raw = groups[1]
-
-                    # Normalize am/pm
-                    ampm = 'pm' if ampm_raw.startswith('p') else 'am'
-
-                    # Convert to 24-hour format
-                    if ampm == 'pm' and hour != 12:
-                        hour += 12
-                    elif ampm == 'am' and hour == 12:
-                        hour = 0
-
-                    # Create naive datetime for today
-                    today = datetime.now().date()
-                    target_time = datetime.combine(today, datetime.min.time().replace(hour=hour, minute=minute))
-
-                    # Handle Singapore timezone (UTC+8) if specified
-                    if 'sgt' in query or 'singapore' in query:
-                        target_time = target_time - timedelta(hours=8)
-
-                    # Found a match, exit loops
-                    break
-            if target_time:
-                break
-
-        return target_time
-
+    
     # Get OAuth credentials from tool context
     if not hasattr(tool_context, "state"):
         return {"panel_markdown": "Error: No authentication state available."}
-
+    
     token_key = f"temp:{auth_id}"
     access_token = tool_context.state.get(token_key)
     if not access_token:
         return {"panel_markdown": "Error: No access token available. Please authenticate first."}
-
+    
     creds = Credentials(token=access_token)
     calendar_service = build("calendar", "v3", credentials=creds)
     drive_service = build("drive", "v3", credentials=creds)
-
+    
     # Initialize Gmail service for email and attachment search
     try:
         gmail_service = build("gmail", "v1", credentials=creds)
@@ -832,50 +1129,10 @@ Keep the response concise but informative, formatted in markdown."""
         if not items:
             return {"panel_markdown": "## 📅 Calendar Overview\n\nNo upcoming meetings found in your calendar for the next 7 days.\n\n💡 **What I can help with:**\n- Schedule analysis and optimization\n- Meeting preparation for future events\n- Calendar management insights"}
 
-        # Parse user query for specific time request
-        user_query = tool_context.user_query.lower() if hasattr(tool_context, 'user_query') else ""
-        target_time = _parse_time_request(user_query)
-
-        target_event_item = None
-        selection_note = ""
-
-        if target_time:
-            # User requested a specific time, try to find it
-            for event in items:
-                start_str = event.get("start", {}).get("dateTime", "")
-                if start_str:
-                    try:
-                        event_time = datetime.fromisoformat(start_str.replace("Z", "+00:00")).astimezone(timezone.utc)
-
-                        # Make target_time aware of UTC for comparison
-                        target_time_utc = target_time.replace(tzinfo=timezone.utc)
-
-                        diff = abs((event_time - target_time_utc).total_seconds())
-                        if diff <= 1800:  # Within a 30-minute window
-                            target_event_item = event
-                            break
-                    except ValueError:
-                        continue # Ignore events with invalid time format
-
-            if target_event_item:
-                start_str = target_event_item.get("start", {}).get("dateTime", "")
-                event_time_utc = datetime.fromisoformat(start_str.replace("Z", "+00:00")).astimezone(timezone.utc)
-                time_display = event_time_utc.strftime("%I:%M %p %Z")
-                selection_note = f"\n> 💡 **Selected Meeting**: Found a meeting at {time_display} that matched your request.\n"
-            else:
-                selection_note = f"\n> ⚠️ **Note**: Could not find a meeting around the specified time. Showing the next upcoming meeting instead.\n"
-
-        # If no specific time was requested or no match was found, default to the next meeting
-        if not target_event_item:
-            target_event_item = items[0]
-            if not target_time: # Only add this note if no time was ever requested
-                 selection_note = "\n> 💡 **Showing Next Meeting**: To see a brief for a different meeting, specify a time (e.g., 'brief for my 2pm meeting').\n"
-
-
-        # Get the selected event with full details
-        event_id = target_event_item["id"]
+        # Get the first upcoming event with full details
+        event_id = items[0]["id"]
         ev = calendar_service.events().get(calendarId="primary", eventId=event_id).execute()
-
+        
         attendees_raw = ev.get("attendees", [])
         attendees = [
             EventAttendee(email=a.get("email", ""), response_status=a.get("responseStatus")) for a in attendees_raw
@@ -895,27 +1152,27 @@ Keep the response concise but informative, formatted in markdown."""
             location=ev.get("location"),
             attachments=ev.get("attachments", [])
         )
-
+        
         # Process comprehensive document search
         all_documents = []
-
+        
         # 1. Process direct Drive attachments from meeting
         file_ids = _extract_drive_file_ids(ev)
         for file_id in file_ids:
             doc = _get_drive_document_content(drive_service, file_id)
             doc.source = "attachment"  # Mark as direct attachment
             all_documents.append(doc)
-
+        
         # 2. Search for related documents in Google Drive
         attendee_emails = [att.email for att in attendees if att.email]
         related_drive_docs = _search_related_drive_documents(
-            drive_service,
-            event_context.summary,
-            attendee_emails,
+            drive_service, 
+            event_context.summary, 
+            attendee_emails, 
             event_context.description or ""
         )
         all_documents.extend(related_drive_docs)
-
+        
         # 3. Search for Gmail attachments between attendees
         if gmail_service:
             gmail_docs = _search_gmail_attachments(
@@ -925,7 +1182,7 @@ Keep the response concise but informative, formatted in markdown."""
                 event_context.description or ""
             )
             all_documents.extend(gmail_docs)
-
+        
         # 4. Calculate relevance scores and sort documents
         all_documents = _calculate_document_relevance(
             all_documents,
@@ -933,7 +1190,7 @@ Keep the response concise but informative, formatted in markdown."""
             event_context.description or "",
             attendee_emails
         )
-
+        
         # 5. Get content for top documents (limit to avoid API limits)
         for doc in all_documents[:10]:  # Process top 10 most relevant documents
             if not doc.content and doc.source != "gmail":  # Skip Gmail docs (content extraction complex)
@@ -942,40 +1199,38 @@ Keep the response concise but informative, formatted in markdown."""
                     doc.content = content_doc.content
                 except Exception:
                     pass  # Skip if content extraction fails
-
+        
         # Get comprehensive analysis including historical and chat context
         attendee_emails = [att.email for att in attendees if att.email]
         ai_insights = _research_with_gemini(event_context.summary, event_context.description or "", attendee_emails)
         attachment_analysis = _analyze_attachments_with_gemini(all_documents[:5], event_context.summary)  # Analyze top 5 documents
         historical_context = _get_historical_context(calendar_service, event_context)
-        chat_context = "## 💬 Chat Context\n\n*Chat analysis has been temporarily disabled to improve performance.*"
-
+        chat_context = _get_chat_context(event_context.summary, attendee_emails, creds)
+        
         # Build comprehensive document table
         document_table = _build_comprehensive_document_table(all_documents)
-
+        
         # Build enhanced meeting brief with legacy attachments section for direct attachments only
         attachments_section = ""
         direct_attachments = [doc for doc in all_documents if doc.source == "attachment"]
         if direct_attachments:
-            attachments_section = "\n## 📎 Direct Meeting Attachments\n\n"
-            for i, doc in enumerate(direct_attachments, 1):
-                attachments_section += f"### {i}. [{doc.name}]({doc.link})\n"
+            attachments_section = "\n## 📎 Direct Meeting Attachments\n"
+            for doc in direct_attachments:
+                attachments_section += f"\n### [{doc.name}]({doc.link})\n"
                 attachments_section += f"**Type:** {doc.mime_type}\n"
-                if doc.content and doc.content != "Content could not be extracted" and "Error accessing" not in doc.content:
+                if doc.content and doc.content != "Content could not be extracted":
                     # Show first few lines of content
-                    content_preview = doc.content[:200] + "..." if len(doc.content) > 200 else doc.content
-                    attachments_section += f"**Preview:** {content_preview}\n\n"
-                else:
-                    attachments_section += "\n"
-
+                    content_preview = doc.content[:300] + "..." if len(doc.content) > 300 else doc.content
+                    attachments_section += f"**Preview:** {content_preview}\n"
+        
         # Add calendar overview section
         calendar_overview = _build_calendar_overview(items, now)
-
-        markdown = f"""# 📅 Meeting Brief{selection_note}
+        
+        markdown = f"""# 📅 Meeting Brief
 
 ## {event_context.summary}
 
-**🕐 Time:** {event_context.start_iso}
+**🕐 Time:** {event_context.start_iso}  
 **⏱️ Duration:** Until {event_context.end_iso}
 
 **📝 Description:** {event_context.description or 'No description provided'}
@@ -985,7 +1240,7 @@ Keep the response concise but informative, formatted in markdown."""
 
 **📍 Location:** {event_context.location or 'No location specified'}
 
-**🔗 Meeting Link:** [{event_context.html_link}]({event_context.html_link})
+**🔗 Meeting Link:** [Join Meeting]({event_context.html_link})
 {attachments_section}
 
 {calendar_overview}
@@ -1005,10 +1260,11 @@ Keep the response concise but informative, formatted in markdown."""
 {ai_insights}
 
 ---
-*📊 Brief generated automatically by Enhanced Meeting Prep Agent with comprehensive document search, Gmail integration, and AI analysis*"""
-
+*📊 Brief generated automatically by Enhanced Meeting Prep Agent with comprehensive document search, Gmail integration, and AI analysis*
+"""
+        
         return {"panel_markdown": markdown}
-
+        
     except Exception as e:
         return {"panel_markdown": f"Error accessing calendar: {str(e)}"}
 
@@ -1034,7 +1290,7 @@ root_agent = LlmAgent(
     instruction="""
 You are a comprehensive meeting preparation and calendar management assistant. You help users with a wide range of calendar and meeting-related tasks.
 
-If the user greets you, you should greet them back, introduce yourself and your capabilities, and then wait for their query. Your capabilities are:
+**Core Capabilities:**
 - **Meeting Preparation**: Generate detailed briefs with attachments, chat context, and AI insights
 - **Calendar Management**: Show upcoming meetings, schedule analysis, and time management
 - **Meeting Discovery**: Find specific meetings by date, attendee, or topic
@@ -1042,7 +1298,7 @@ If the user greets you, you should greet them back, introduce yourself and your 
 - **Chat Integration**: Search Google Chat and Slack conversations for meeting context
 - **Schedule Insights**: Provide patterns, conflicts, and optimization suggestions
 
-After the initial greeting, for any subsequent calendar or meeting question, always use the \"prepare_brief\" sub-agent to get comprehensive calendar data, then provide the specific information requested.
+**For ANY calendar or meeting question**, always use the "prepare_brief" sub-agent to get comprehensive calendar data, then provide the specific information requested.
 
 **Types of questions to handle with prepare_brief tool:**
 - Today's/tomorrow's schedule
@@ -1075,7 +1331,7 @@ After the initial greeting, for any subsequent calendar or meeting question, alw
 
 **Always be proactive**: If someone asks a simple calendar question, offer to prepare a meeting brief or provide additional helpful context.
 
-Do not greet the user if you have already greeted them. Always provide actionable, specific information.
+Never greet the user again if you already did previously. Always provide actionable, specific information.
     """,
     sub_agents=[prepare_brief],
 )
