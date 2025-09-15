@@ -747,7 +747,7 @@ Keep the response concise but informative, formatted in markdown."""
     def _parse_time_request(user_query: str) -> Optional[datetime]:
         """Parse user query to extract specific time request. Handles formats like 4:00p.m, 4:00 p.m, 4p.m, 4 p.m, 4 pm, 4 am."""
         import re
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
 
         query = user_query.lower()
 
@@ -783,9 +783,12 @@ Keep the response concise but informative, formatted in markdown."""
                     elif ampm == 'am' and hour == 12:
                         hour = 0
 
-                    # Create naive datetime for today
+                    # Create timezone-aware datetime for today in local timezone
                     today = datetime.now().date()
-                    target_time = datetime.combine(today, datetime.min.time().replace(hour=hour, minute=minute))
+                    local_time = datetime.combine(today, datetime.min.time().replace(hour=hour, minute=minute))
+                    
+                    # Convert to UTC for consistent comparison with calendar events
+                    target_time = local_time.astimezone(timezone.utc)
 
                     # Handle Singapore timezone (UTC+8) if specified
                     if 'sgt' in query or 'singapore' in query:
@@ -820,43 +823,6 @@ Keep the response concise but informative, formatted in markdown."""
     # Parse user query to determine if they want a specific meeting
     user_query = tool_context.user_query.lower() if hasattr(tool_context, 'user_query') else ""
     
-    # Check if user is asking for a specific meeting time
-    target_event = None
-    specific_time_requested = False
-    
-    # Look for time patterns in the query
-    time_patterns = [
-        r'(\d{1,2}):(\d{2})\s*(am|pm)',
-        r'(\d{1,2})\s*(am|pm)',
-        r'(\d{1,2}):(\d{2})',
-        r'at\s+(\d{1,2}):(\d{2})',
-        r'(\d{1,2}):(\d{2})\s*(am|pm)\s*meeting',
-        r'meeting\s*at\s*(\d{1,2}):(\d{2})',
-        r'(\d{1,2})\s*(am|pm)\s*meeting',
-        r'meeting\s*(\d{1,2})\s*(am|pm)'
-    ]
-    
-    import re
-    target_time = None
-    for pattern in time_patterns:
-        match = re.search(pattern, user_query)
-        if match:
-            specific_time_requested = True
-            groups = match.groups()
-            if len(groups) >= 2:
-                hour = int(groups[0])
-                minute = int(groups[1]) if groups[1] else 0
-                ampm = groups[2].lower() if len(groups) > 2 and groups[2] else None
-                
-                # Convert to 24-hour format
-                if ampm == 'pm' and hour != 12:
-                    hour += 12
-                elif ampm == 'am' and hour == 12:
-                    hour = 0
-                
-                target_time = f"{hour:02d}:{minute:02d}"
-                break
-    
     # Get upcoming events - expanded to next 7 days for broader calendar insights
     now = datetime.now(timezone.utc)
     time_min = now.isoformat()
@@ -873,7 +839,6 @@ Keep the response concise but informative, formatted in markdown."""
             return {"panel_markdown": "## 📅 Calendar Overview\n\nNo upcoming meetings found in your calendar for the next 7 days.\n\n💡 **What I can help with:**\n- Schedule analysis and optimization\n- Meeting preparation for future events\n- Calendar management insights"}
 
         # Parse user query for specific time request
-        user_query = tool_context.user_query.lower() if hasattr(tool_context, 'user_query') else ""
         target_time = _parse_time_request(user_query)
 
         target_event_item = None
@@ -887,8 +852,8 @@ Keep the response concise but informative, formatted in markdown."""
                     try:
                         event_time = datetime.fromisoformat(start_str.replace("Z", "+00:00")).astimezone(timezone.utc)
 
-                        # Make target_time aware of UTC for comparison
-                        target_time_utc = target_time.replace(tzinfo=timezone.utc)
+                        # target_time is already timezone-aware UTC from _parse_time_request
+                        target_time_utc = target_time
 
                         diff = abs((event_time - target_time_utc).total_seconds())
                         if diff <= 1800:  # Within a 30-minute window
@@ -1076,13 +1041,10 @@ You are a comprehensive meeting preparation and calendar management assistant. Y
 
 If the user greets you, you should greet them back, introduce yourself and your capabilities, and then wait for their query. Your capabilities are:
 - **Meeting Preparation**: Generate detailed briefs with attachments, chat context, and AI insights
-- **Calendar Management**: Show upcoming meetings, schedule analysis, and time management
 - **Meeting Discovery**: Find specific meetings by date, attendee, or topic
 - **Document Analysis**: Analyze meeting attachments and related documents
-- **Chat Integration**: Search Google Chat and Slack conversations for meeting context
-- **Schedule Insights**: Provide patterns, conflicts, and optimization suggestions
 
-After the initial greeting, for any subsequent calendar or meeting question, always use the \"prepare_brief\" sub-agent to get comprehensive calendar data, then provide the specific information requested.
+After the initial greeting, for any subsequent calendar or meeting question, always use the "prepare_brief" sub-agent to get comprehensive calendar data, then provide the specific information requested.
 
 **Types of questions to handle with prepare_brief tool:**
 - Today's/tomorrow's schedule

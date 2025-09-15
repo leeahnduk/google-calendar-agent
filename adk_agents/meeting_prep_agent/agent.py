@@ -182,7 +182,7 @@ def auth_user(tool_context: ToolContext):
         tool_context.state["calendar_tool_tokens"] = json.loads(creds.to_json())
 
 
-# Tool: prepare_meeting_brief (adapted for dev UI)
+# Tool: prepare_meeting_brief (adapted for dev UI with specific time support)
 def prepare_meeting_brief(tool_context: ToolContext):
     # Lazy import internal tools
     from agents.trigger import on_demand_next_event
@@ -190,14 +190,147 @@ def prepare_meeting_brief(tool_context: ToolContext):
     from tools.drive_search import search_drive
     from tools.slack_fetcher import fetch_slack_messages
     from agents.delivery import build_panel_markdown
+    from datetime import datetime, timedelta, timezone
+    from googleapiclient.discovery import build
+    from google.oauth2.credentials import Credentials
+    import re
+
+    def _parse_time_request(user_query: str) -> datetime:
+        """Parse user query to extract specific time request. Handles formats like 4:00p.m, 4:00 p.m, 4p.m, 4 p.m, 4 pm, 4 am."""
+        query = user_query.lower()
+
+        # Patterns to detect time, with and without 'at'
+        time_patterns = [
+            r'(\d{1,2}):(\d{2})\s*(a\.?.m\.?.|p\.?.m\.?)', # 4:00p.m, 4:00 p.m.
+            r'(\d{1,2})\s*(a\.?.m\.?.|p\.?.m\.?)',       # 4p.m, 4 pm
+        ]
+
+        target_time = None
+        for pattern in time_patterns:
+            # Also check for 'at 2pm' style
+            for prefix in [r'at\s+', '']:
+                full_pattern = prefix + pattern
+                match = re.search(full_pattern, query)
+                if match:
+                    groups = match.groups()
+                    hour = int(groups[0])
+
+                    if ':' in pattern:
+                        minute = int(groups[1])
+                        ampm_raw = groups[2]
+                    else:
+                        minute = 0
+                        ampm_raw = groups[1]
+
+                    # Normalize am/pm
+                    ampm = 'pm' if ampm_raw.startswith('p') else 'am'
+
+                    # Convert to 24-hour format
+                    if ampm == 'pm' and hour != 12:
+                        hour += 12
+                    elif ampm == 'am' and hour == 12:
+                        hour = 0
+
+                    # Create timezone-aware datetime for today in local timezone
+                    today = datetime.now().date()
+                    local_time = datetime.combine(today, datetime.min.time().replace(hour=hour, minute=minute))
+                    
+                    # Convert to UTC for consistent comparison with calendar events
+                    target_time = local_time.astimezone(timezone.utc)
+
+                    # Handle Singapore timezone (UTC+8) if specified
+                    if 'sgt' in query or 'singapore' in query:
+                        target_time = target_time - timedelta(hours=8)
+
+                    # Found a match, exit loops
+                    break
+            if target_time:
+                break
+
+        return target_time
 
     # Check if user is authenticated
     if "calendar_tool_tokens" not in tool_context.state:
         return {"panel_markdown": "Please authenticate first to access your calendar and documents."}
 
-    ev = on_demand_next_event(tool_context)
-    if not ev:
-        return {"panel_markdown": "No upcoming meetings found."}
+    # Parse user query for specific time request
+    user_query = tool_context.user_query.lower() if hasattr(tool_context, 'user_query') else ""
+    target_time = _parse_time_request(user_query)
+
+    # If specific time requested, search for that meeting
+    if target_time:
+        # Get calendar service
+        from config.settings import load_settings
+        from agents.oauth_util import get_google_creds_from_tool_context
+        settings = load_settings()
+        creds = get_google_creds_from_tool_context(tool_context, settings.auth_id)
+        calendar_service = build("calendar", "v3", credentials=creds)
+
+        # Get upcoming events - expanded to next 7 days for broader calendar insights
+        now = datetime.now(timezone.utc)
+        time_min = now.isoformat()
+        time_max = (now + timedelta(days=7)).isoformat()
+
+        try:
+            events_result = (
+                calendar_service.events()
+                .list(calendarId="primary", timeMin=time_min, timeMax=time_max, singleEvents=True, orderBy="startTime", maxResults=50)
+                .execute()
+            )
+            items = events_result.get("items", [])
+            
+            if not items:
+                return {"panel_markdown": "No upcoming meetings found in your calendar for the next 7 days."}
+
+            # Look for meeting at specific time
+            target_event_item = None
+            for event in items:
+                start_str = event.get("start", {}).get("dateTime", "")
+                if start_str:
+                    try:
+                        event_time = datetime.fromisoformat(start_str.replace("Z", "+00:00")).astimezone(timezone.utc)
+                        diff = abs((event_time - target_time).total_seconds())
+                        if diff <= 1800:  # Within a 30-minute window
+                            target_event_item = event
+                            break
+                    except ValueError:
+                        continue # Ignore events with invalid time format
+
+            if not target_event_item:
+                return {"panel_markdown": f"Could not find a meeting around the specified time. Showing the next upcoming meeting instead."}
+
+            # Get the selected event with full details
+            event_id = target_event_item["id"]
+            ev_raw = calendar_service.events().get(calendarId="primary", eventId=event_id).execute()
+            
+            # Convert to EventContext format
+            from tools.calendar_fetcher import EventContext, EventAttendee
+            attendees_raw = ev_raw.get("attendees", [])
+            attendees = [
+                EventAttendee(email=a.get("email", ""), response_status=a.get("responseStatus")) for a in attendees_raw
+            ]
+            start = ev_raw.get("start", {}).get("dateTime") or ev_raw.get("start", {}).get("date") or ""
+            end = ev_raw.get("end", {}).get("dateTime") or ev_raw.get("end", {}).get("date") or ""
+
+            ev = EventContext(
+                id=ev_raw.get("id", ""),
+                summary=ev_raw.get("summary", ""),
+                description=ev_raw.get("description", ""),
+                start_iso=start,
+                end_iso=end,
+                attendees=attendees,
+                recurring_event_id=ev_raw.get("recurringEventId"),
+                html_link=ev_raw.get("htmlLink"),
+                location=ev_raw.get("location"),
+            )
+
+        except Exception as e:
+            return {"panel_markdown": f"Error accessing calendar: {str(e)}"}
+    else:
+        # No specific time requested, use the next event
+        ev = on_demand_next_event(tool_context)
+        if not ev:
+            return {"panel_markdown": "No upcoming meetings found."}
 
     # Attachment ingest + drive search
     # Note: ingest requires raw event dict; tool_context may not carry it, so search by title keywords as well
