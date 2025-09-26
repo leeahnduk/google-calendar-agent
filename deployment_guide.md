@@ -48,6 +48,7 @@ The agent requires OAuth 2.0 credentials to access Google services on behalf of 
         https://www.googleapis.com/auth/chat.spaces.readonly
         https://www.googleapis.com/auth/chat.messages.readonly
         https://www.googleapis.com/auth/gmail.readonly
+        https://www.googleapis.com/auth/documents
         ```
     -   Add your email to the list of **Test users**.
 

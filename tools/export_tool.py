@@ -25,7 +25,15 @@ def export_to_google_docs_tool(tool_context: ToolContext):
             return {"panel_markdown": "Error: No authentication state available."}
 
         token_key = f"temp:{auth_id}"
-        access_token = tool_context.state.get(token_key)
+        try:
+            if hasattr(tool_context.state, 'get'):
+                access_token = tool_context.state.get(token_key)
+            else:
+                access_token = getattr(tool_context.state, token_key, None)
+        except Exception as e:
+            print(f"DEBUG: Error accessing access token: {e}")
+            return {"panel_markdown": f"Error: Unable to access authentication state: {str(e)}"}
+
         if not access_token:
             return {"panel_markdown": "Error: No access token available. Please authenticate first."}
 
@@ -35,12 +43,16 @@ def export_to_google_docs_tool(tool_context: ToolContext):
         docs_service = build('docs', 'v1', credentials=creds)
         drive_service = build('drive', 'v3', credentials=creds)
 
-        # For this simple implementation, let's generate a new meeting brief to export
-        # In a more sophisticated implementation, you'd get the previous agent response
-        from agents.meeting_prep_agent import prepare_meeting_brief
+        # For this implementation, we'll generate a fresh meeting brief using the current tools
+        # Import the meeting brief tool directly
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-        # Get the meeting brief content
-        brief_result = prepare_meeting_brief(tool_context)
+        from tools.meeting_brief_tool import prepare_meeting_brief_tool
+
+        # Get the meeting brief content using the same approach as the multi-agent system
+        brief_result = prepare_meeting_brief_tool("", tool_context)
         content_to_export = brief_result.get("panel_markdown", "No content available to export.")
 
         # Clean up markdown for Google Docs (remove markdown formatting)

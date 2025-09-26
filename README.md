@@ -539,6 +539,7 @@ https://www.googleapis.com/auth/userinfo.email
 https://www.googleapis.com/auth/chat.spaces.readonly  # For Google Chat integration
 https://www.googleapis.com/auth/chat.messages.readonly  # For Google Chat messages
 https://www.googleapis.com/auth/gmail.readonly  # For Gmail integration and attachment search
+https://www.googleapis.com/auth/documents  # For exporting to Google Docs
 ```
 
 ## 🔒 Security & Privacy
@@ -559,6 +560,7 @@ https://www.googleapis.com/auth/userinfo.email
 https://www.googleapis.com/auth/chat.spaces.readonly  # For Google Chat integration
 https://www.googleapis.com/auth/chat.messages.readonly  # For Google Chat messages
 https://www.googleapis.com/auth/gmail.readonly  # For Gmail integration and attachment search
+https://www.googleapis.com/auth/documents  # For exporting to Google Docs
 ```
 
 ## 📈 Performance

@@ -115,8 +115,8 @@ def prereq_setup(callback_context: CallbackContext):
 
 # Import specialized tools with proper ADK wrappers
 from tools.meeting_brief_wrapper import prepare_meeting_brief, get_meetings_today
-from tools.meeting_details_tool import prepare_meeting_details_tool
-from tools.meeting_search_tools import search_meeting_by_time_tool, search_meeting_by_subject_tool, search_meeting_tool
+from tools.meeting_details_wrapper import prepare_meeting_details
+from tools.meeting_search_wrapper import search_meeting_tool, search_meeting_by_time_tool, search_meeting_by_subject_tool
 from tools.export_tool import export_to_google_docs_tool
 
 
@@ -185,12 +185,14 @@ Use the comprehensive detailed format that includes:
 - AI research & insights
 - Historical context when available
 
-IMPORTANT: Always use the prepare_meeting_details_tool to generate the comprehensive analysis.
+IMPORTANT: Always use the prepare_meeting_details tool and pass the user's complete request as the user_request parameter. For example:
+- For "details for meeting 2" -> use prepare_meeting_details with user_request="details for meeting 2"
+- For "comprehensive analysis" -> use prepare_meeting_details with user_request="comprehensive analysis"
 Provide thorough, in-depth information for users who need complete details.
 
 TRIGGER KEYWORDS: "details", "deep dive", "full analysis", "insights", "comprehensive", "in-depth", "thorough", "full", "expanded", "elaborate", "breakdown"
     """,
-    tools=[prepare_meeting_details_tool],
+    tools=[prepare_meeting_details],
     before_agent_callback=prereq_setup,
 )
 
@@ -221,8 +223,13 @@ Subject formats supported:
 - "titled 'Planning Session'"
 - "called 'Sprint Review'"
 
-IMPORTANT: Use search_meeting_tool for unified search that handles both time and subject queries automatically.
-If the user query contains specific time or subject patterns, route to the appropriate specialized tool.
+IMPORTANT: Always use the appropriate search tool and pass the user's complete request as the user_request parameter. For example:
+- For "meeting at 5:00pm today" -> use search_meeting_tool with user_request="meeting at 5:00pm today"
+- For "meeting with subject 'Planning'" -> use search_meeting_tool with user_request="meeting with subject 'Planning'"
+- For time-specific queries -> use search_meeting_by_time_tool with user_request="[complete query]"
+- For subject-specific queries -> use search_meeting_by_subject_tool with user_request="[complete query]"
+
+Use search_meeting_tool for unified search that handles both time and subject queries automatically.
     """,
     tools=[search_meeting_tool, search_meeting_by_time_tool, search_meeting_by_subject_tool],
     before_agent_callback=prereq_setup,

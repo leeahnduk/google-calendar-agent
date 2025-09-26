@@ -5,10 +5,16 @@ Meeting Search Tools - Search for specific meetings by time or subject.
 from google.adk.tools.tool_context import ToolContext
 
 
-def search_meeting_tool(tool_context: ToolContext):
+def search_meeting_tool(user_request: str = "", tool_context: ToolContext = None):
     """
     Unified search tool that handles both time and subject queries.
+
+    Args:
+        user_request: The user's request/query for meeting search
+        tool_context: Tool context containing authentication state
     """
+    print("DEBUG: ========== MEETING SEARCH TOOL STARTED ==========")
+    print(f"DEBUG: Received user_request parameter: '{user_request}'")
     # Enhanced implementation with time parsing
     from datetime import datetime, timedelta, timezone
     from dataclasses import dataclass
@@ -116,7 +122,15 @@ def search_meeting_tool(tool_context: ToolContext):
             return {"panel_markdown": "Error: No authentication state available."}
 
         token_key = f"temp:{auth_id}"
-        access_token = tool_context.state.get(token_key)
+        try:
+            if hasattr(tool_context.state, 'get'):
+                access_token = tool_context.state.get(token_key)
+            else:
+                access_token = getattr(tool_context.state, token_key, None)
+        except Exception as e:
+            print(f"DEBUG: Error accessing access token: {e}")
+            return {"panel_markdown": f"Error: Unable to access authentication state: {str(e)}"}
+
         if not access_token:
             return {"panel_markdown": "Error: No access token available. Please authenticate first."}
 
@@ -124,7 +138,37 @@ def search_meeting_tool(tool_context: ToolContext):
         calendar_service = build("calendar", "v3", credentials=creds)
 
         # Parse user query to determine if they want a specific meeting
-        user_query = tool_context.user_query if hasattr(tool_context, 'user_query') else ""
+        print(f"DEBUG: tool_context attributes: {dir(tool_context)}")
+        print(f"DEBUG: tool_context.state: {getattr(tool_context, 'state', 'No state')}")
+
+        # Get user query from parameter first, then fallback to tool context state
+        user_query = user_request
+        print(f"DEBUG: Received user_request parameter: '{user_request}'")
+
+        if not user_query and tool_context and hasattr(tool_context, 'state'):
+            try:
+                if hasattr(tool_context.state, 'get'):
+                    if tool_context.state.get('_user_query'):
+                        user_query = tool_context.state.get('_user_query')
+                        print(f"DEBUG: Found user_query via tool_context.state.get('_user_query'): '{user_query}'")
+                    elif tool_context.state.get('user_input'):
+                        user_query = tool_context.state.get('user_input')
+                        print(f"DEBUG: Found user_query via tool_context.state.get('user_input'): '{user_query}'")
+                    else:
+                        print(f"DEBUG: No user_query found in tool_context state")
+                else:
+                    # Fallback to direct attribute access
+                    user_query = getattr(tool_context.state, '_user_query', None) or getattr(tool_context.state, 'user_input', None)
+                    if user_query:
+                        print(f"DEBUG: Found user_query via getattr: '{user_query}'")
+                    else:
+                        print(f"DEBUG: No user_query found in tool_context state via getattr")
+            except Exception as e:
+                print(f"DEBUG: Error accessing user_query from state: {e}")
+        elif not user_query:
+            print(f"DEBUG: No tool_context or state available")
+
+        print(f"DEBUG: Final user_query: '{user_query}'")
 
         # Get events from today onwards - including past events from today
         now = datetime.now(timezone.utc)
@@ -200,9 +244,36 @@ def search_meeting_tool(tool_context: ToolContext):
 
             # Try to get saved meeting index from meetings_today_agent output
             saved_meeting_index = None
-            if hasattr(tool_context, 'state') and 'meeting_index' in tool_context.state:
-                saved_meeting_index = tool_context.state['meeting_index']
-                print(f"DEBUG: Found saved meeting index with {len(saved_meeting_index)} meetings")
+            print(f"DEBUG: tool_context has state: {hasattr(tool_context, 'state')}")
+            if hasattr(tool_context, 'state'):
+                try:
+                    # Try to access state keys safely
+                    if hasattr(tool_context.state, 'keys'):
+                        print(f"DEBUG: tool_context.state keys: {list(tool_context.state.keys())}")
+                    else:
+                        print(f"DEBUG: tool_context.state type: {type(tool_context.state)}")
+                except Exception as e:
+                    print(f"DEBUG: Error accessing state keys: {e}")
+
+                # Try to get meeting_index from state
+                try:
+                    if hasattr(tool_context.state, 'get'):
+                        saved_meeting_index = tool_context.state.get('meeting_index')
+                    else:
+                        # Fallback to direct access
+                        saved_meeting_index = getattr(tool_context.state, 'meeting_index', None)
+
+                    if saved_meeting_index:
+                        print(f"DEBUG: Found saved meeting index with {len(saved_meeting_index)} meetings")
+                        print(f"DEBUG: First meeting in index: {saved_meeting_index[0] if saved_meeting_index else 'None'}")
+                    else:
+                        print("DEBUG: 'meeting_index' not found in tool_context.state")
+                except Exception as e:
+                    print(f"DEBUG: Error accessing meeting_index: {e}")
+                    saved_meeting_index = None
+            else:
+                print("DEBUG: tool_context has no state attribute")
+                saved_meeting_index = None
 
             if saved_meeting_index:
                 # Use the saved meeting index
@@ -464,15 +535,23 @@ If you'd like to dig deeper, I have more details ready. Just ask for the full do
         return {"panel_markdown": f"Error searching for meeting: {str(e)}"}
 
 
-def search_meeting_by_time_tool(tool_context: ToolContext):
+def search_meeting_by_time_tool(user_request: str = "", tool_context: ToolContext = None):
     """
     Find meeting by specific time.
+
+    Args:
+        user_request: The user's request/query for meeting search by time
+        tool_context: Tool context containing authentication state
     """
-    return search_meeting_tool(tool_context)
+    return search_meeting_tool(user_request, tool_context)
 
 
-def search_meeting_by_subject_tool(tool_context: ToolContext):
+def search_meeting_by_subject_tool(user_request: str = "", tool_context: ToolContext = None):
     """
     Find meeting by subject/title.
+
+    Args:
+        user_request: The user's request/query for meeting search by subject
+        tool_context: Tool context containing authentication state
     """
-    return search_meeting_tool(tool_context)
+    return search_meeting_tool(user_request, tool_context)
