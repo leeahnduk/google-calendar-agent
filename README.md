@@ -273,6 +273,8 @@ When you next authenticate through AgentSpace, you'll be prompted to grant Gmail
 
 Deploy to Google Cloud AgentSpace:
 
+#### Option A: Original Monolithic Agent
+
 ```bash
 # Set environment variables
 export PYTHONPATH=$(pwd):$PYTHONPATH
@@ -282,18 +284,72 @@ export STAGING_BUCKET=gs://your-staging-bucket
 export AUTH_ID=meeting-prep-auth
 export AGENT_DISPLAY_NAME="Meeting_Prep_Agent"
 
-# Deploy the agent
+# Deploy the original agent
 python agents/meeting_prep_agent.py
 ```
+
+#### Option B: Multi-Agent System (Recommended)
+
+```bash
+# Set environment variables
+export PYTHONPATH=$(pwd):$PYTHONPATH
+export GOOGLE_CLOUD_PROJECT=your-project-id
+export GOOGLE_CLOUD_LOCATION=us-central1
+export STAGING_BUCKET=gs://your-staging-bucket
+export AUTH_ID=meeting-prep-multi-auth
+export AGENT_DISPLAY_NAME="Meeting_Prep_Agent_Multi"
+
+# Deploy the multi-agent system
+python agents/meeting_prep_agent_multi.py
+```
+
+**🎯 Multi-Agent System Features:**
+- **Smart Query Routing**: Automatically determines user intent and routes to appropriate specialist
+- **Brief Agent**: Generates concise meeting summaries with key points and talking points
+- **Details Agent**: Provides comprehensive analysis with full document review and AI insights
+- **Search Agent**: Finds specific meetings by time ("2pm meeting") or subject ("meeting titled 'Planning'")
+- **Export Agent**: Saves meeting briefs to Google Docs with proper formatting
+- **Enhanced Keywords**: Improved recognition of user intent with expanded keyword sets
 
 ## 🛠️ Usage
 
 ### In AgentSpace
 
 1. Navigate to your AgentSpace web interface
-2. Find your "Meeting_Prep_Agent"
-3. Ask: **"Generate the meeting brief for my next meeting"**
-4. Receive a comprehensive brief with AI analysis
+2. Find your agent ("Meeting_Prep_Agent" or "Meeting_Prep_Agent_Multi")
+3. Ask questions and receive intelligent responses
+
+### Multi-Agent System Queries
+
+The multi-agent system intelligently routes your requests to the appropriate specialist:
+
+**📋 For Quick Briefs:**
+- "Give me a brief for my next meeting"
+- "Quick summary of my 2pm meeting"
+- "Information about tomorrow's presentation"
+- "Key points for my upcoming call"
+
+**🔍 For Detailed Analysis:**
+- "I need detailed analysis of my project review meeting"
+- "Give me comprehensive insights for the quarterly planning session"
+- "Full breakdown of the client presentation meeting"
+- "In-depth preparation for the board meeting"
+
+**🔎 For Specific Meeting Search:**
+- "Meeting at 2pm today"
+- "Find my 10:30 meeting tomorrow"
+- "Meeting titled 'Sprint Planning'"
+- "Meeting with subject: 'Product Review'"
+
+**💾 For Exporting:**
+- "Export this meeting brief to Google Docs"
+- "Save the detailed analysis to my Drive"
+- "Create a document with the meeting preparation"
+
+### Original Agent Queries
+
+- **"Generate the meeting brief for my next meeting"**
+- **"Prepare brief for my 2pm meeting"**
 
 ### Example Output
 
@@ -531,12 +587,123 @@ https://www.googleapis.com/auth/gmail.readonly  # For Gmail integration and atta
    - Check calendar permissions and upcoming events
    - Verify timezone settings
 
+5. **"Error generating meeting brief: 'State' object has no attribute 'keys'"**
+   - Fixed in latest version with defensive state access patterns
+   - Redeploy with: `python agents/meeting_prep_agent_multi.py`
+
+6. **Agent not responding to specific meeting requests** (e.g., "brief for meeting 2")
+   - Fixed in multi-agent system with proper parameter passing
+   - Use multi-agent deployment for numbered meeting selection
+
+7. **Debug output not visible in trace viewer**
+   - Fixed with logging configuration to suppress ALTS warnings
+   - Latest version includes proper debug output
+
+### Multi-Agent System Specific Issues
+
+1. **User queries not being passed to tools**
+   - **Symptom**: Tool always shows default meeting instead of requested meeting
+   - **Solution**: Fixed with proper tool wrapper pattern and parameter passing
+   - **Verification**: Check `gcp.vertex.agent.tool_call_args` in trace viewer
+
+2. **State access errors in tools**
+   - **Symptom**: `'State' object has no attribute 'keys'` or similar errors
+   - **Solution**: Implemented defensive state access with try-catch blocks
+   - **Pattern**: Always check `hasattr(tool_context.state, 'get')` before using `.get()`
+
+3. **Missing numbered meeting selection**
+   - **Symptom**: "brief for meeting 2" doesn't work
+   - **Solution**: First ask "how many meetings do I have left today?" to generate index
+   - **Then**: Use "brief for meeting 2" to get specific meeting
+
 ### Debug Steps
 
-1. Check agent logs in Google Cloud Console
-2. Verify OAuth scopes and permissions
-3. Test with a simple calendar event
-4. Check environment variable configuration
+1. **Check agent logs in Google Cloud Console**
+   - Look for deployment confirmation messages
+   - Verify no import or configuration errors
+
+2. **Use Google Cloud Trace Viewer**
+   - Check `gcp.vertex.agent.tool_call_args` for parameter passing
+   - Look for debug output (no longer blocked by ALTS warnings)
+   - Verify tool execution flow
+
+3. **Verify OAuth scopes and permissions**
+   - Ensure all required scopes are granted
+   - Re-authenticate if needed
+
+4. **Test with a simple calendar event**
+   - Start with basic queries like "brief for my next meeting"
+   - Progress to specific queries like "meeting at 2pm"
+
+5. **Check environment variable configuration**
+   - Verify `.env` file has all required values
+   - Check `AUTH_ID` matches between deployment and AgentSpace
+
+### Advanced Debugging
+
+For developers working on the codebase:
+
+1. **Syntax Validation**
+   ```bash
+   python -c "from agents.meeting_prep_agent_multi import root_agent; print('✅ Syntax valid')"
+   ```
+
+2. **State Access Debugging**
+   ```python
+   # Add to tools for debugging state issues
+   print(f"DEBUG: tool_context.state type: {type(tool_context.state)}")
+   print(f"DEBUG: Available state methods: {[m for m in dir(tool_context.state) if not m.startswith('_')]}")
+   ```
+
+3. **Parameter Passing Verification**
+   ```python
+   # Check if parameters are being passed correctly
+   print(f"DEBUG: Received parameters: {locals()}")
+   ```
+
+4. **Callback Context Analysis**
+   ```python
+   # Debug callback context in prereq_setup
+   print(f"DEBUG: callback_context attributes: {[attr for attr in dir(callback_context) if not attr.startswith('_')]}")
+   ```
+
+### Performance Optimization
+
+1. **Response Time Issues**
+   - Multi-agent system is optimized for faster routing
+   - Brief agent provides quicker responses than details agent
+   - Use specific queries to get targeted responses
+
+2. **Memory Issues**
+   - Large document processing is handled efficiently
+   - Documents are processed with content limits
+   - Pagination used for large attachment lists
+
+### Quick Fix Commands
+
+```bash
+# Redeploy multi-agent system with all fixes
+python agents/meeting_prep_agent_multi.py
+
+# Verify deployment
+python -c "
+import vertexai
+from vertexai import agent_engines
+from config.settings import load_settings
+settings = load_settings()
+vertexai.init(project=settings.google_cloud_project, location=settings.google_cloud_location)
+agents = list(agent_engines.list(filter=f'display_name=\"{settings.agent_display_name}\"'))
+print(f'Found {len(agents)} agents')
+if agents: print(f'Last updated: {agents[0].update_time}')
+"
+```
+
+### Getting Help
+
+- **Detailed Troubleshooting**: See [lessons.md](lessons.md) for comprehensive debugging guide
+- **Issues**: [GitHub Issues](https://github.com/leeahnduk/google-calendar-agent/issues)
+- **Multi-Agent Architecture**: See [MultiAgent_Revamp_Plan.md](MultiAgent_Revamp_Plan.md)
+- **Deployment Guide**: See [deployment_guide.md](deployment_guide.md)
 
 ## 🤝 Contributing
 
