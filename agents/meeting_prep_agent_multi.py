@@ -117,7 +117,7 @@ def prereq_setup(callback_context: CallbackContext):
 from tools.meeting_brief_wrapper import prepare_meeting_brief, get_meetings_today
 from tools.meeting_details_wrapper import prepare_meeting_details
 from tools.meeting_search_wrapper import search_meeting_tool, search_meeting_by_time_tool, search_meeting_by_subject_tool
-from tools.export_tool import export_to_google_docs_tool
+from tools.export_wrapper import export_to_google_docs_tool_wrapper
 
 
 # ============================================================================
@@ -202,34 +202,36 @@ meeting_search_agent = LlmAgent(
     model=settings.sub_agent_model,
     description="Searches for specific meetings by time or subject and provides appropriate briefs",
     instruction="""
-You search for specific meetings based on:
-- Time queries: "meeting at 2pm", "2:30 meeting today", "meeting at 19:00 SGT", "yesterday meeting"
-- Subject queries: "meeting with subject: 'Title'", "meeting titled 'Planning'"
+You are the meeting search specialist. Your job is to find specific meetings by time or subject and provide the appropriate brief or details.
 
-Your process:
-1. Parse the user's query to identify time or subject criteria
-2. Search for the matching meeting
-3. Determine if user wants brief or detailed response based on their query
-4. Provide the appropriate format (brief by default, details if requested)
+🚨 **CRITICAL WORKFLOW**:
+1. **GET USER QUERY**: Retrieve the user's request from the conversation context
+2. **CALL SEARCH TOOL**: Immediately call search_meeting_tool with the complete user request
+3. **RETURN RESULTS**: Provide the meeting brief/details from the search results
+4. **NEVER TRANSFER**: Do not transfer to other agents - you handle the complete response
 
-Time formats supported:
-- 2:00p.m, 2:00 p.m, 2p.m, 2 p.m
-- 2pm, 2:30pm, 14:30, 19:00 SGT
-- today, tomorrow, yesterday
-- "at 2pm", "meeting at 10:30"
+**How to get the user query:**
+- The user's complete request is stored in the session state as '_user_query'
+- Access it from the tool context and pass it to your search tool
+- Use the exact query the user provided (e.g., "meeting brief for my meeting starting at 5:00pm today")
 
-Subject formats supported:
-- "subject: 'Meeting Title'"
-- "titled 'Planning Session'"
-- "called 'Sprint Review'"
+**Tool Usage:**
+- IMMEDIATELY call: search_meeting_tool(user_request="[user's complete request]")
+- The user_request parameter must contain the user's exact query
+- The tool will find the specific meeting and provide brief or details format based on the user's request
+- Do not modify or interpret the user's request - pass it exactly as received
 
-IMPORTANT: Always use the appropriate search tool and pass the user's complete request as the user_request parameter. For example:
-- For "meeting at 5:00pm today" -> use search_meeting_tool with user_request="meeting at 5:00pm today"
-- For "meeting with subject 'Planning'" -> use search_meeting_tool with user_request="meeting with subject 'Planning'"
-- For time-specific queries -> use search_meeting_by_time_tool with user_request="[complete query]"
-- For subject-specific queries -> use search_meeting_by_subject_tool with user_request="[complete query]"
+**Examples:**
+- User query: "generate a meeting brief for my meeting starting at 5:00pm today"
+  → Call: search_meeting_tool(user_request="generate a meeting brief for my meeting starting at 5:00pm today")
 
-Use search_meeting_tool for unified search that handles both time and subject queries automatically.
+- User query: "meeting details with subject 'Budget Planning'"
+  → Call: search_meeting_tool(user_request="meeting details with subject 'Budget Planning'")
+
+🚫 **NEVER**: Transfer to meeting_brief_agent, meeting_details_agent, or any other agent
+✅ **ALWAYS**: Use search_meeting_tool with the complete user request to find and provide meeting information
+
+The search tool will handle both finding the specific meeting and providing the appropriate format (brief or details) based on what the user requested.
     """,
     tools=[search_meeting_tool, search_meeting_by_time_tool, search_meeting_by_subject_tool],
     before_agent_callback=prereq_setup,
@@ -239,27 +241,49 @@ Use search_meeting_tool for unified search that handles both time and subject qu
 export_agent = LlmAgent(
     name="export_agent",
     model=settings.sub_agent_model,
-    description="Exports meeting briefs and analysis to Google Docs",
+    description="Exports meeting briefs and analysis to Google Docs with sequential workflow support",
     instruction="""
 You export meeting briefs and analysis to Google Docs in the user's Google Drive.
 
 Your capabilities:
 - Export previous meeting briefs to Google Docs
 - Export detailed meeting analysis to Google Docs
-- Generate fresh content if needed before export
+- Generate fresh content for specific numbered meetings before export
 - Create properly formatted documents with timestamps
 - Provide direct links to created documents
 
-Process:
-1. Determine what content to export (previous response or generate new)
-2. Create a new Google Doc with appropriate title
-3. Format the content for Google Docs (convert markdown to readable text)
-4. Provide the user with the document link
+🔄 **SEQUENTIAL EXPORT WORKFLOW**:
 
-IMPORTANT: Always use export_to_google_docs_tool to handle the export process.
-Ensure users get a working link to their exported document.
+**For numbered meeting exports** (e.g., "export details for meeting 4 to Google Docs"):
+1. **Parse the request**: Identify if user wants "brief" or "details" and which meeting number
+2. **Generate content**: Call prepare_meeting_brief or prepare_meeting_details to get fresh content for that specific meeting
+3. **Store content**: After getting the result, remember the content for the export tool
+4. **Export content**: Use export_to_google_docs_tool to export the generated content
+5. **Return link**: Provide the user with the Google Docs link
+
+**For general exports** (e.g., "export to Google Docs"):
+- Use previous response or generate new content as needed
+- Export using export_to_google_docs_tool
+
+**SEQUENTIAL EXPORT WORKFLOW**:
+The export tool wrapper now handles the complete sequential workflow automatically:
+
+1. **Single Tool Call**: Use export_to_google_docs_tool_wrapper with the complete user request
+2. **Automatic Content Generation**: The wrapper automatically determines if user wants brief or details
+3. **Fresh Content**: The wrapper generates fresh content for the specific meeting requested
+4. **Document Creation**: The wrapper creates the Google Doc with the correct content and naming
+
+**Examples:**
+- "export details for meeting 4 to Google Docs" → Call export_to_google_docs_tool_wrapper("export details for meeting 4 to Google Docs")
+- "export brief for meeting 2 to Google Docs" → Call export_to_google_docs_tool_wrapper("export brief for meeting 2 to Google Docs")
+
+**IMPORTANT CHANGES**:
+- **Single tool call only**: Do NOT call prepare_meeting_details or prepare_meeting_brief separately
+- **Pass complete user request**: Always pass the user's full export request to the wrapper
+- **Automatic workflow**: The wrapper handles content generation, storage, and export automatically
+- **Proper content**: The wrapper ensures the correct content type (brief vs details) is exported
     """,
-    tools=[export_to_google_docs_tool],
+    tools=[export_to_google_docs_tool_wrapper, prepare_meeting_brief, prepare_meeting_details],
     before_agent_callback=prereq_setup,
 )
 
@@ -345,9 +369,10 @@ Available Specialist Agents:
    - Use when: User needs in-depth preparation and complete information or requests details for a specific numbered meeting
 
 🔸 **meeting_search_agent**: For finding specific meetings by time or subject
-   - Time triggers: "meeting at 2pm", "10:30 meeting", "yesterday meeting", "19:00 SGT"
+   - Time triggers: "meeting at 2pm", "10:30 meeting", "yesterday meeting", "19:00 SGT", "starting at", "at 5:00pm"
    - Subject triggers: "subject:", "titled", "called", "named", "meeting with subject"
-   - Use when: User specifies a particular meeting rather than "next meeting"
+   - Use when: User specifies a particular meeting time or subject, even if they also want a brief/details
+   - PRIORITY: If user mentions both time AND brief/details, route here (search agent can provide appropriate format)
 
 🔸 **meetings_today_agent**: For showing all remaining meetings today with numbered index
    - Triggers: "how many meetings", "meetings left", "remaining meetings", "meetings today", "what meetings", "meetings remaining", "schedule today", "today's schedule", "calendar today"
@@ -359,14 +384,33 @@ Available Specialist Agents:
    - Creates: Formatted Google Doc in user's Drive with sharing link
    - Use when: User wants to save or share the meeting preparation
 
-Routing Guidelines:
-- Default to meeting_brief_agent for general meeting preparation requests
-- Use meeting_details_agent when user explicitly asks for comprehensive information
-- Use meeting_search_agent when specific time or subject criteria are mentioned
-- Use export_agent when user wants to save or export previous responses
-- **NUMBERED MEETING SELECTION**: For queries like "brief for meeting 2", "details for meeting 4", route to the appropriate agent (brief/details) based on the action word, NOT to search agent
-- Always pass the complete user query to the selected agent
-- Be proactive in suggesting other agents if the initial response doesn't fully meet the user's needs
+🚨🚨🚨 **CRITICAL ROUTING RULES - MANDATORY COMPLIANCE** 🚨🚨🚨
+
+**HIGHEST PRIORITY RULE #1**: If query contains ANY TIME words → IMMEDIATELY route to meeting_search_agent
+   TIME KEYWORDS: "at 5:00pm", "starting at", "Starting at", "happening at", "happening around", "happening after", "5pm", "2:30", "19:00", "meeting at", "yesterday", "tomorrow", "5:00pm", "6pm", "7:00pm", "4:30", "17:00"
+   ✅ EXAMPLE: "brief for my meeting starting at 5:00pm" → meeting_search_agent
+   ✅ EXAMPLE: "generate meeting brief for meeting at 6pm" → meeting_search_agent
+
+**HIGHEST PRIORITY RULE #2**: If query contains ANY SUBJECT words → IMMEDIATELY route to meeting_search_agent
+   SUBJECT KEYWORDS: "subject:", "titled", "called", "named", "with subject", "starting with", "Starting with", "contain", "Containing", "meeting about", "about"
+   ✅ EXAMPLE: "meeting with subject Budget" → meeting_search_agent
+
+**RULE #3**: If query contains numbered selection ("brief for meeting 2", "details for meeting 3") → route to brief_agent or details_agent
+**RULE #4**: If query contains meeting count ("how many meetings", "meetings today", "remaining meetings") → route to meetings_today_agent
+**RULE #5**: If query contains export ("export", "save", "google doc") → route to export_agent
+**RULE #6**: For general queries without above keywords → route to meeting_brief_agent or meeting_details_agent
+
+🛑 **CRITICAL**: ALWAYS prioritize TIME and SUBJECT detection over "brief" or "details" keywords
+🛑 **NEVER route time-based queries to meeting_details_agent or meeting_brief_agent**
+🛑 **The search agent handles ALL time and subject queries regardless of brief/details format requested**
+
+**Examples:**
+- "generate a meeting brief for my meeting starting at 5:00pm today" → meeting_search_agent (TIME detected)
+- "meeting details for subject 'Planning'" → meeting_search_agent (SUBJECT detected)
+- "brief for meeting 2" → meeting_brief_agent (NUMBERED selection)
+- "how many meetings today" → meetings_today_agent (COUNT query)
+
+CRITICAL: Always pass the complete user query to the selected agent.
 
 Special Handling:
 - If user greets you, greet back and explain your capabilities, then wait for their request

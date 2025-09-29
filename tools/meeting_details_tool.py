@@ -274,7 +274,7 @@ Format your response in clear markdown sections. Be specific and actionable in y
     try:
         # Get environment variables directly
         import os
-        auth_id = os.getenv("AUTH_ID", "grab_meeting_multi")
+        auth_id = os.getenv("AUTH_ID", "grab_meeting_multi_doc_v2")
         google_cloud_project = os.getenv("GOOGLE_CLOUD_PROJECT", "")
         google_cloud_location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
 
@@ -355,6 +355,24 @@ Format your response in clear markdown sections. Be specific and actionable in y
         # Check for numbered meeting selection
         target_event_item = items[0]  # Default to first meeting
         selection_note = ""
+
+        # Check if search tool has already selected a specific meeting
+        selected_meeting_data = None
+        if hasattr(tool_context, 'state'):
+            try:
+                if hasattr(tool_context.state, 'get'):
+                    selected_meeting_data = tool_context.state.get('_selected_meeting_data')
+                else:
+                    selected_meeting_data = getattr(tool_context.state, '_selected_meeting_data', None)
+
+                if selected_meeting_data:
+                    print(f"DEBUG: Using meeting selected by search tool: {selected_meeting_data.get('summary', '')}")
+                    target_event_item = selected_meeting_data
+                    selection_note = "\\n> 🔍 **Selected Meeting**: Using meeting found by search.\\n"
+                else:
+                    print("DEBUG: No pre-selected meeting found, using default logic")
+            except Exception as e:
+                print(f"DEBUG: Error accessing selected meeting data: {e}")
 
         # Check for numbered meeting selection patterns
         number_patterns = [
@@ -648,15 +666,20 @@ Format your response in clear markdown sections. Be specific and actionable in y
         else:
             attendees_section = "**👥 Attendees:** No attendees listed\\n"
 
-        # Format detailed time information
+        # Format detailed time information in Singapore timezone
         try:
             start_dt = datetime.fromisoformat(event_context.start_iso.replace("Z", "+00:00"))
             end_dt = datetime.fromisoformat(event_context.end_iso.replace("Z", "+00:00"))
-            duration = end_dt - start_dt
 
-            detailed_time = f"""**🕐 Time:** {start_dt.strftime("%A, %B %d, %Y at %I:%M %p")}
-**⏱️ Duration:** {duration} (until {end_dt.strftime("%I:%M %p")})
-**🌍 Timezone:** {start_dt.strftime("%Z")}"""
+            # Convert to Singapore timezone (UTC+8)
+            singapore_tz = timezone(timedelta(hours=8))
+            start_dt_sg = start_dt.astimezone(singapore_tz)
+            end_dt_sg = end_dt.astimezone(singapore_tz)
+            duration = end_dt_sg - start_dt_sg
+
+            detailed_time = f"""**🕐 Time:** {start_dt_sg.strftime("%A, %B %d, %Y at %I:%M %p")} (SGT)
+**⏱️ Duration:** {duration} (until {end_dt_sg.strftime("%I:%M %p")})
+**🌍 Timezone:** Singapore Time (SGT)"""
         except:
             detailed_time = f"""**🕐 Time:** {event_context.start_iso}
 **⏱️ Duration:** Until {event_context.end_iso}"""
@@ -865,10 +888,9 @@ Keep the response concise but informative, formatted in markdown."""
 *Google Chat analysis has been temporarily disabled to improve performance.*"""
 
         # Build comprehensive meeting details matching original format exactly
-        markdown = f"""# 📅 Meeting Brief: {event_context.summary}
+        markdown = f"""# 📅 Meeting Details: {event_context.summary}
 
-**🕐 Time:** {event_context.start_iso}
-**⏱️ Duration:** Until {event_context.end_iso}
+{detailed_time}
 
 **📝 Description:** {event_context.description or 'No description provided'}
 

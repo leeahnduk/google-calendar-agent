@@ -36,14 +36,22 @@ def meetings_remaining_today_tool(tool_context: ToolContext):
     try:
         # Get auth_id from environment or use default
         import os
-        auth_id = os.getenv("AUTH_ID", "grab_meeting_multi")
+        auth_id = os.getenv("AUTH_ID", "grab_meeting_multi_doc_v2")
 
         # Get OAuth credentials from tool context
         if not hasattr(tool_context, "state"):
             return {"panel_markdown": "Error: No authentication state available."}
 
         token_key = f"temp:{auth_id}"
-        access_token = tool_context.state.get(token_key)
+        try:
+            if hasattr(tool_context.state, 'get'):
+                access_token = tool_context.state.get(token_key)
+            else:
+                access_token = getattr(tool_context.state, token_key, None)
+        except Exception as e:
+            print(f"DEBUG: Error accessing access token: {e}")
+            return {"panel_markdown": f"Error: Unable to access authentication state: {str(e)}"}
+
         if not access_token:
             return {"panel_markdown": "Error: No access token available. Please authenticate first."}
 
@@ -194,8 +202,9 @@ def meetings_remaining_today_tool(tool_context: ToolContext):
             response += "---\n\n"
             response += "💡 **Quick Actions:**\n"
             response += "• To get a brief for any meeting, say: `brief for meeting 2`\n"
-            response += "• To search by time: `meeting at 4pm`\n"
-            response += "• To search by subject: `meeting with subject \"Budget Planning\"`\n"
+            response += "• To get details for any meeting, say: `deep dive for meeting 4`\n"
+            response += "• To export a brief for any meeting to Google Docs, say: `export the meeting brief to Google Docs for meeting 4`\n"
+            response += "• To export a deep dive for any meeting to Google Docs, say: `export the meeting details to Google Docs for meeting 2`\n"
 
         # Store meeting index in tool context for future reference
         meeting_index_data = []
@@ -218,8 +227,14 @@ def meetings_remaining_today_tool(tool_context: ToolContext):
 
         # Store meeting index in tool context state for other agents to use
         if hasattr(tool_context, 'state'):
-            tool_context.state['meeting_index'] = meeting_index_data
-            print(f"DEBUG: Saved meeting index with {len(meeting_index_data)} meetings to tool_context.state")
+            try:
+                if hasattr(tool_context.state, '__setitem__'):
+                    tool_context.state['meeting_index'] = meeting_index_data
+                else:
+                    setattr(tool_context.state, 'meeting_index', meeting_index_data)
+                print(f"DEBUG: Saved meeting index with {len(meeting_index_data)} meetings to tool_context.state")
+            except Exception as e:
+                print(f"DEBUG: Error storing meeting_index in state: {e}")
 
         return {
             "panel_markdown": response,

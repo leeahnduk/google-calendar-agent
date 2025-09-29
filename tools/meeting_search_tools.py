@@ -49,7 +49,9 @@ def search_meeting_tool(user_request: str = "", tool_context: ToolContext = None
 
     def _parse_time_request(user_query: str) -> Optional[datetime]:
         """Parse user query to extract specific time request"""
+        print(f"DEBUG: _parse_time_request called with: '{user_query}'")
         query = user_query.lower()
+        print(f"DEBUG: Lowercased query: '{query}'")
 
         # Patterns to detect time, with and without 'at'
         time_patterns = [
@@ -59,12 +61,15 @@ def search_meeting_tool(user_request: str = "", tool_context: ToolContext = None
         ]
 
         target_time = None
-        for pattern in time_patterns:
+        for i, pattern in enumerate(time_patterns):
+            print(f"DEBUG: Trying pattern {i+1}: '{pattern}'")
             # Also check for 'at 5pm' style
-            for prefix in [r'at\s+', '']:
+            for j, prefix in enumerate([r'at\s+', '']):
                 full_pattern = prefix + pattern
+                print(f"DEBUG: Full pattern {i+1}.{j+1}: '{full_pattern}'")
                 match = re.search(full_pattern, query)
                 if match:
+                    print(f"DEBUG: MATCH FOUND with pattern '{full_pattern}': {match.groups()}")
                     groups = match.groups()
                     hour = int(groups[0])
 
@@ -96,11 +101,14 @@ def search_meeting_tool(user_request: str = "", tool_context: ToolContext = None
 
                     # Create target time for today - assume Singapore timezone (UTC+8)
                     from datetime import datetime, timedelta, timezone
-                    today = datetime.now().date()
+
+                    # Get "today" in Singapore timezone, not server timezone
+                    singapore_tz = timezone(timedelta(hours=8))
+                    now_sg = datetime.now(singapore_tz)
+                    today_sg = now_sg.date()
 
                     # Create time in Singapore timezone (UTC+8)
-                    singapore_tz = timezone(timedelta(hours=8))
-                    target_time = datetime.combine(today, datetime.min.time().replace(hour=hour, minute=minute))
+                    target_time = datetime.combine(today_sg, datetime.min.time().replace(hour=hour, minute=minute))
                     target_time = target_time.replace(tzinfo=singapore_tz)
 
                     print(f"DEBUG: Target time created: {target_time}")
@@ -110,12 +118,15 @@ def search_meeting_tool(user_request: str = "", tool_context: ToolContext = None
             if target_time:
                 break
 
+        if not target_time:
+            print("DEBUG: No time pattern matched in query")
+
         return target_time
 
     try:
         # Get auth_id from environment or use default
         import os
-        auth_id = os.getenv("AUTH_ID", "grab_meeting_multi")
+        auth_id = os.getenv("AUTH_ID", "grab_meeting_multi_doc_v2")
 
         # Get OAuth credentials from tool context
         if not hasattr(tool_context, "state"):
@@ -143,7 +154,10 @@ def search_meeting_tool(user_request: str = "", tool_context: ToolContext = None
 
         # Get user query from parameter first, then fallback to tool context state
         user_query = user_request
+        print(f"DEBUG: ==================== QUERY ANALYSIS ====================")
         print(f"DEBUG: Received user_request parameter: '{user_request}'")
+        print(f"DEBUG: user_request type: {type(user_request)}")
+        print(f"DEBUG: user_request length: {len(user_request) if user_request else 'None'}")
 
         if not user_query and tool_context and hasattr(tool_context, 'state'):
             try:
@@ -201,20 +215,21 @@ def search_meeting_tool(user_request: str = "", tool_context: ToolContext = None
         # Parse user query for specific time request
         target_time = _parse_time_request(user_query)
 
-        # Check for numbered meeting selection first
-        number_patterns = [
-            r'brief for meeting (\d+)',
-            r'meeting (\d+)',
-            r'number (\d+)',
-            r'(\d+)'  # Just a number
-        ]
-
+        # Check for numbered meeting selection ONLY if no time was found
         meeting_number = None
-        for pattern in number_patterns:
-            match = re.search(pattern, user_query, re.IGNORECASE)
-            if match:
-                meeting_number = int(match.group(1))
-                break
+        if not target_time:
+            number_patterns = [
+                r'brief for meeting (\d+)',
+                r'meeting (\d+)',
+                r'number (\d+)',
+                r'^(\d+)$'  # Only standalone numbers, not part of time
+            ]
+
+            for pattern in number_patterns:
+                match = re.search(pattern, user_query, re.IGNORECASE)
+                if match:
+                    meeting_number = int(match.group(1))
+                    break
 
         # Check for subject/title search patterns
         subject_patterns = [
@@ -347,33 +362,36 @@ def search_meeting_tool(user_request: str = "", tool_context: ToolContext = None
         # Then try time search if no subject found
         elif target_time:
             # Debug: print target time and events for troubleshooting
-            print(f"DEBUG: Looking for meeting at {target_time}")
+            singapore_tz = timezone(timedelta(hours=8))
+            target_time_sg = target_time.astimezone(singapore_tz)
+            print(f"DEBUG: Looking for meeting at TARGET TIME: {target_time_sg} (SGT)")
+            print(f"DEBUG: Target hour: {target_time_sg.hour}, Target minute: {target_time_sg.minute}")
 
             # User requested a specific time, find matches
             exact_matches = []
             later_matches = []
 
-            singapore_tz = timezone(timedelta(hours=8))
-            target_time_sg = target_time.astimezone(singapore_tz)
-
-            for event in items:
+            print(f"DEBUG: Checking {len(items)} events against target time...")
+            for i, event in enumerate(items):
                 start_str = event.get("start", {}).get("dateTime", "")
                 if start_str:
                     try:
                         event_time = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
                         event_time_sg = event_time.astimezone(singapore_tz)
 
-                        print(f"DEBUG: Event '{event.get('summary', '')}' at {event_time_sg}")
+                        print(f"DEBUG: Event #{i+1}: '{event.get('summary', '')}' at {event_time_sg} (SGT)")
+                        print(f"DEBUG:   Event hour: {event_time_sg.hour}, Event minute: {event_time_sg.minute}")
 
                         # Check if event starts exactly at the requested time (within 30 minutes)
                         diff = abs((event_time_sg - target_time_sg).total_seconds())
+                        print(f"DEBUG:   Time difference: {diff} seconds ({diff/60:.1f} minutes)")
 
                         # For better matching: exact time (within 30 minutes) or start of hour match
                         is_exact_match = diff <= 1800  # Within 30 minutes
-
-                        # Special case: if user asks for 4:00pm, match meeting that starts at 4:00pm
                         hour_match = (event_time_sg.hour == target_time_sg.hour and
                                      abs(event_time_sg.minute - target_time_sg.minute) <= 30)
+
+                        print(f"DEBUG:   is_exact_match: {is_exact_match}, hour_match: {hour_match}")
 
                         if is_exact_match or hour_match:
                             exact_matches.append({
@@ -381,14 +399,16 @@ def search_meeting_tool(user_request: str = "", tool_context: ToolContext = None
                                 'time': event_time_sg,
                                 'diff': diff
                             })
-                            print(f"DEBUG: EXACT MATCH: {event.get('summary', '')} (diff: {diff} seconds)")
+                            print(f"DEBUG: ✅ EXACT MATCH: {event.get('summary', '')} (diff: {diff} seconds)")
                         elif event_time_sg > target_time_sg:  # Meeting is later in the day
                             later_matches.append({
                                 'event': event,
                                 'time': event_time_sg,
                                 'diff': (event_time_sg - target_time_sg).total_seconds()
                             })
-                            print(f"DEBUG: LATER MATCH: {event.get('summary', '')} at {event_time_sg}")
+                            print(f"DEBUG: ⏰ LATER MATCH: {event.get('summary', '')} at {event_time_sg}")
+                        else:
+                            print(f"DEBUG: ❌ NO MATCH: {event.get('summary', '')} at {event_time_sg}")
 
                     except ValueError as e:
                         print(f"DEBUG: Error parsing time for event: {e}")
@@ -497,39 +517,71 @@ def search_meeting_tool(user_request: str = "", tool_context: ToolContext = None
             start_time = event_context.start_iso
             end_time = event_context.end_iso
 
-        # Get key context and challenge (simplified for brief)
-        key_context = f"Meeting about {event_context.summary}" + (f": {event_context.description[:100]}..." if event_context.description else "")
-        key_challenge = "Review agenda and prepare talking points for effective discussion."
+        # Store the found meeting in context for other tools to use
+        print(f"DEBUG: Found target meeting: {event_context.summary}")
+        print(f"DEBUG: User query: '{user_query}'")
 
-        # Get top 3 documents (simplified)
-        docs_section = "No specific documents attached to this meeting."
-        if event_context.attachments:
-            docs_section = f"{len(event_context.attachments)} document(s) attached - review before meeting."
+        # Store the selected meeting details in tool context state for brief/details tools to use
+        if hasattr(tool_context, 'state'):
+            try:
+                if hasattr(tool_context.state, '__setitem__'):
+                    tool_context.state['_selected_meeting_id'] = event_context.id
+                    tool_context.state['_selected_meeting_data'] = target_event_item
+                else:
+                    setattr(tool_context.state, '_selected_meeting_id', event_context.id)
+                    setattr(tool_context.state, '_selected_meeting_data', target_event_item)
+                print(f"DEBUG: Stored selected meeting ID: {event_context.id}")
+            except Exception as e:
+                print(f"DEBUG: Error storing meeting data: {e}")
 
-        # Generate talking points (simplified)
-        talking_points = """1. Review meeting objectives and expected outcomes
-2. Prepare any questions or concerns to discuss
-3. Share relevant updates from your work"""
+        # Determine if user wants brief or details and call appropriate tool directly
+        wants_details = any(keyword in user_query.lower() for keyword in [
+            'details', 'detail', 'comprehensive', 'full analysis', 'in-depth',
+            'thorough', 'deep dive', 'breakdown', 'elaborate', 'expanded'
+        ])
 
-        brief = f"""📅**Meeting:** "{event_context.summary}" **Time:** {start_time} - {end_time}
+        print(f"DEBUG: User wants details: {wants_details}")
+
+        # Import and call the appropriate tool for proper formatting
+        try:
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+            if wants_details:
+                print("DEBUG: Calling prepare_meeting_details_tool for comprehensive format")
+                from tools.meeting_details_tool import prepare_meeting_details_tool
+                result = prepare_meeting_details_tool(user_query, tool_context)
+                print("DEBUG: Got result from meeting_details_tool")
+                return result
+            else:
+                print("DEBUG: Calling prepare_meeting_brief_tool for brief format")
+                from tools.meeting_brief_tool import prepare_meeting_brief_tool
+                result = prepare_meeting_brief_tool(user_query, tool_context)
+                print("DEBUG: Got result from meeting_brief_tool")
+                return result
+        except Exception as e:
+            print(f"DEBUG: Error calling formatting tool: {e}")
+            # Fallback to basic format if tools fail
+            brief = f"""📅**Meeting:** "{event_context.summary}" **Time:** {start_time} - {end_time}
 
 * **Attendees:** {attendees_list}
 * **Location:** {event_context.location or "Not specified"}
 * **Meeting Link:** [Join Meeting]({event_context.html_link})
 
-📚**Context:** {key_context}
+📚**Context:** Meeting about {event_context.summary}{': ' + event_context.description[:100] + '...' if event_context.description else ''}
 
-💬**Key Challenge to Discuss:** {key_challenge}
+💬**Key Challenge to Discuss:** Review agenda and prepare talking points for effective discussion.
 
-📎**Related Documents:**
-{docs_section}
+📎**Related Documents:** No specific documents attached to this meeting.
 
 📋**Potential Talking Points:**
-{talking_points}
+1. Review meeting objectives and expected outcomes
+2. Prepare any questions or concerns to discuss
+3. Share relevant updates from your work
 
-If you'd like to dig deeper, I have more details ready. Just ask for the full document analysis, a list of questions to consider for the meeting, or insights into the project's history.{selection_note}"""
-
-        return {"panel_markdown": brief}
+{selection_note}"""
+            return {"panel_markdown": brief}
 
     except Exception as e:
         return {"panel_markdown": f"Error searching for meeting: {str(e)}"}
