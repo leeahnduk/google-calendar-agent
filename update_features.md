@@ -220,7 +220,75 @@ def prepare_meeting_brief(tool_context: ToolContext):
 
 ---
 
-## 🚀 Latest Deployment - January 2025
+## 🚀 Latest Deployment - September 2025
+
+**🤖 Multi-Agent System Deployment with AUTH_ID Fix - grab-meeting-prep-multi-docs_Multi (DEPLOYED):**
+- **Multi-Agent Architecture:** Complete deployment of specialized agent system with smart query routing ✅
+- **Fixed Authentication:** Resolved critical AUTH_ID hardcoding issue in all tools ✅
+- **Agent Specialization:** 5 specialized agents (Brief, Details, Search, Today, Export) with root coordination ✅
+- **Priority-Based Routing:** Deterministic query routing with clear priority order to prevent infinite loops ✅
+- **Parameter Passing:** Fixed tool parameter passing across all agents and wrappers ✅
+- **Defensive State Access:** Implemented robust state access patterns to prevent context errors ✅
+
+**🔧 CRITICAL LESSON LEARNED - AUTH_ID Hardcoding Issue:**
+
+**⚠️ Problem:** When creating new OAuth authorizations with different AUTH_IDs, tools fail with "No access token available" because they use hardcoded default AUTH_IDs instead of reading from environment.
+
+**📍 Root Cause:**
+- Tools running in AgentSpace don't load .env files
+- All tools had hardcoded fallback AUTH_IDs: `os.getenv("AUTH_ID", "grab_meeting_multi")`
+- When AUTH_ID changed to `grab_meeting_multi_doc_v2`, tools still looked for old token key
+
+**✅ Solution Process:**
+1. **Identify affected tools:** Search all tool files for `auth_id.*=` pattern
+2. **Update default AUTH_ID** in each tool file:
+   ```python
+   # OLD (wrong):
+   auth_id = os.getenv("AUTH_ID", "grab_meeting_multi")
+
+   # NEW (correct):
+   auth_id = os.getenv("AUTH_ID", "grab_meeting_multi_doc_v2")
+   ```
+3. **Files requiring update:**
+   - `tools/meeting_search_tools.py`
+   - `tools/meeting_brief_tool.py`
+   - `tools/meeting_details_tool.py`
+   - `tools/meetings_today_tool.py`
+   - `tools/export_tool.py`
+4. **Redeploy agent** after updating all tool files
+
+**🚨 IMPORTANT: When changing AUTH_ID in future:**
+1. **ALWAYS check** all tool files for hardcoded AUTH_ID defaults
+2. **Update ALL tools** to use the new AUTH_ID as fallback
+3. **Search pattern:** `grep -r "auth_id.*=" tools/` to find all instances
+4. **Deploy agent** after updating tool files, not just .env
+
+**💡 Prevention:** Consider using a centralized AUTH_ID configuration or settings module that all tools import, rather than individual hardcoded defaults.
+
+**Multi-Agent Features:**
+- **Brief Agent:** Quick summaries with structured format and talking points ✅
+- **Details Agent:** Comprehensive analysis with full document review and AI insights ✅
+- **Search Agent:** Time/subject-based meeting search with brief/details output ✅
+- **Today Agent:** Numbered meeting list for easy selection ("brief for meeting 2") ✅
+- **Export Agent:** Google Docs export with proper OAuth scopes ✅
+- **Root Agent:** Smart routing with priority-based query classification ✅
+
+**Technical Improvements:**
+- **Fixed infinite agent transfer loops** with clear routing priority order ✅
+- **Resolved "Failed to detach context" errors** with defensive state access ✅
+- **Implemented proper tool wrappers** for ADK compatibility ✅
+- **Added comprehensive error handling** across all tools ✅
+- **Updated OAuth scopes** to include Google Docs for export functionality ✅
+
+**Deployment Details:**
+- **System:** Multi-Agent Architecture (5 specialized agents + 1 root coordinator)
+- **Deployment Date:** September 28, 2025
+- **Resource:** `projects/777331773170/locations/us-central1/reasoningEngines/4217220828799959040`
+- **Authorization:** `grab_meeting_multi_doc_v2` (corrected AUTH_ID)
+- **Agent Display:** `grab-meeting-prep-multi-docs_Multi`
+- **Status:** Production Ready with all authentication issues resolved ✅
+
+## 🚀 Previous Deployment - January 2025
 
 **📋 Enhanced Meeting Brief with Comprehensive Document Search - Grab_Meeting_Prep_Agent (DEPLOYED):**
 - **Comprehensive Document Integration:** Enhanced meeting briefs now include extensive document search across multiple sources ✅
