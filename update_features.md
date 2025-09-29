@@ -222,6 +222,14 @@ def prepare_meeting_brief(tool_context: ToolContext):
 
 ## 🚀 Latest Deployment - September 2025
 
+**🔧 Export Tool Content Retrieval Fix & Sequential Workflow - grab-meeting-prep-multi-docs_Multi (DEPLOYED):**
+- **Fixed Export Content Issue:** Resolved critical issue where export tool was using cached brief content instead of fresh details content ✅
+- **Sequential Export Workflow:** Implemented automatic workflow: generate fresh content → store → export with single tool call ✅
+- **Export Wrapper Architecture:** Created `tools/export_wrapper.py` for seamless content generation and export coordination ✅
+- **Document Naming Enhancement:** Proper detection and naming: "Meeting [Brief/Details] Notes - [Meeting Name] - [Time]" ✅
+- **Content Type Detection:** Automatic detection of user intent (brief vs details) from export requests ✅
+- **Singapore Timezone Display:** All meeting times now display in SGT instead of UTC ✅
+
 **🤖 Multi-Agent System Deployment with AUTH_ID Fix - grab-meeting-prep-multi-docs_Multi (DEPLOYED):**
 - **Multi-Agent Architecture:** Complete deployment of specialized agent system with smart query routing ✅
 - **Fixed Authentication:** Resolved critical AUTH_ID hardcoding issue in all tools ✅
@@ -264,6 +272,48 @@ def prepare_meeting_brief(tool_context: ToolContext):
 4. **Deploy agent** after updating tool files, not just .env
 
 **💡 Prevention:** Consider using a centralized AUTH_ID configuration or settings module that all tools import, rather than individual hardcoded defaults.
+
+**🔧 CRITICAL LESSON LEARNED - Export Tool Content Retrieval Issue:**
+
+**⚠️ Problem:** Export agent was calling `prepare_meeting_details` followed by `export_to_google_docs_tool`, but the export tool was using cached brief content instead of the fresh details content, resulting in wrong document type and content being exported.
+
+**📍 Root Cause:**
+- Export tool was looking for `_last_tool_response` in tool context state, which ADK doesn't automatically populate
+- Content from previous agent executions wasn't being stored in accessible state location
+- Multiple tool calls in export agent workflow weren't sharing content properly
+- Document naming was incorrect due to content type detection failure
+
+**✅ Solution Process:**
+1. **Created Export Wrapper:** `tools/export_wrapper.py` that handles complete sequential workflow
+2. **Single Tool Call Pattern:** Export agent now uses single `export_to_google_docs_tool_wrapper` call
+3. **Automatic Content Generation:** Wrapper determines brief vs details from user request and generates fresh content
+4. **Content Storage:** Wrapper stores generated content in `_export_content` and `_export_content_type` state keys
+5. **Enhanced Content Detection:** Export tool prioritizes wrapper-stored content over fallback methods
+6. **Document Type Detection:** Uses wrapper-provided content type for proper naming
+
+**🔄 New Export Workflow:**
+```
+User: "export details for meeting 4 to Google Docs"
+↓
+Root Agent routes to Export Agent
+↓
+Export Agent calls: export_to_google_docs_tool_wrapper("export details for meeting 4 to Google Docs")
+↓
+Wrapper detects "details" → calls prepare_meeting_details_tool()
+↓
+Wrapper stores fresh details content in state
+↓
+Export tool retrieves fresh content and creates "Meeting Details Notes - [Name] - [Time]"
+```
+
+**🚨 IMPORTANT: When implementing sequential workflows in ADK:**
+1. **Use wrapper pattern** for multi-step tool operations
+2. **Store intermediate results** in tool context state with clear key names
+3. **Prioritize fresh content** over cached or previous responses
+4. **Pass complete user request** through the entire workflow chain
+5. **Test content retrieval** before deploying to ensure proper workflow execution
+
+**💡 Prevention:** For any multi-tool workflows, implement wrapper pattern that handles content generation, storage, and consumption in a single coordinated flow.
 
 **Multi-Agent Features:**
 - **Brief Agent:** Quick summaries with structured format and talking points ✅

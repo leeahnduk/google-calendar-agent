@@ -343,6 +343,8 @@ The multi-agent system intelligently routes your requests to the appropriate spe
 
 **💾 For Exporting:**
 - "Export this meeting brief to Google Docs"
+- "Export details for meeting 4 to Google Docs"
+- "Export brief for meeting 2 to Google Docs"
 - "Save the detailed analysis to my Drive"
 - "Create a document with the meeting preparation"
 
@@ -601,6 +603,16 @@ https://www.googleapis.com/auth/documents  # For exporting to Google Docs
    - Fixed with logging configuration to suppress ALTS warnings
    - Latest version includes proper debug output
 
+8. **Export tool using wrong content type**
+   - **Symptom**: Export creates "Meeting Brief Notes" even when requesting details
+   - **Solution**: Fixed with export wrapper pattern (`tools/export_wrapper.py`)
+   - **Verification**: Document title should show correct type and meeting name
+
+9. **Export agent workflow issues**
+   - **Symptom**: Multiple tool calls not sharing content properly
+   - **Solution**: Updated to single `export_to_google_docs_tool_wrapper` call
+   - **Result**: Automatic content generation, storage, and export coordination
+
 ### Multi-Agent System Specific Issues
 
 1. **User queries not being passed to tools**
@@ -739,8 +751,9 @@ Security is a top priority. Please review our [Security Guidelines](SECURITY.md)
 
 ---
 
-**⚡ Agent Status**: Production Ready with Enhanced Gmail Integration  
-**📅 Last Updated**: January 1, 2025  
-**🚀 Agent Resource**: `projects/777331773170/locations/us-central1/reasoningEngines/6987198482423480320`  
-**🎯 AgentSpace ID**: `3458178826058614269`  
-**🔑 Authorization**: `meeting-prep-gmail-auth`
+**⚡ Agent Status**: Production Ready with Fixed Export Functionality
+**📅 Last Updated**: September 29, 2025
+**🚀 Agent Resource**: `projects/777331773170/locations/us-central1/reasoningEngines/4217220828799959040`
+**🎯 Multi-Agent System**: grab-meeting-prep-multi-docs_Multi
+**🔑 Authorization**: `grab_meeting_multi_doc_v2`
+**🔧 Export Enhancement**: Sequential workflow with proper content retrieval
