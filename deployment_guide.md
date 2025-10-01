@@ -247,6 +247,21 @@ python agents/meeting_prep_agent_multi.py  # Redeploy
 1. First ask: "how many meetings do I have left today?" to generate the meeting index
 2. Then use: "brief for meeting 2" to get the specific meeting
 
+#### 5. **Export Tool Using Wrong Content Type**
+**Symptom**: Export to Google Docs creates "Meeting Brief Notes" even when requesting details export
+**Solution**: Fixed with export wrapper pattern in latest version
+- **Root Cause**: Export tool was using cached brief content instead of fresh details content
+- **Fix**: Created `tools/export_wrapper.py` that handles sequential workflow automatically
+- **Verification**: Document title should show correct type: "Meeting [Brief/Details] Notes - [Meeting Name] - [Time]"
+
+#### 6. **Export Agent Tool Workflow Issues**
+**Symptom**: Multiple tool calls in export agent not sharing content properly
+**Solution**:
+1. **Updated Export Agent**: Now uses single `export_to_google_docs_tool_wrapper` call
+2. **Wrapper Pattern**: Handles content generation → storage → export automatically
+3. **Content Detection**: Automatically detects brief vs details from user request
+4. **Fresh Content**: Always generates new content for numbered meetings
+
 ### Advanced Troubleshooting
 
 #### 1. **Syntax Validation Before Deployment**
@@ -307,6 +322,15 @@ Expected: Brief for meeting starting at 3:00pm
 ```
 Query: "Meeting with subject 'Budget Planning'"
 Expected: Brief for meeting matching that subject
+```
+
+#### 5. **Export Functionality Test**
+```
+Step 1: "export details for meeting 2 to Google Docs"
+Expected: Document titled "Meeting Details Notes - [Meeting Name] - [Time]" with comprehensive content
+
+Step 2: "export brief for meeting 3 to Google Docs"
+Expected: Document titled "Meeting Brief Notes - [Meeting Name] - [Time]" with concise content
 ```
 
 ### Performance Optimization

@@ -130,7 +130,25 @@ def prepare_meeting_brief_tool(meeting_query: str = "", tool_context: ToolContex
 
         # Check for numbered meeting selection using saved meeting index
         target_event_item = items[0]  # Default to first meeting
+
+        # Check if search tool has already selected a specific meeting
+        selected_meeting_data = None
         selection_note = ""
+        if hasattr(tool_context, 'state'):
+            try:
+                if hasattr(tool_context.state, 'get'):
+                    selected_meeting_data = tool_context.state.get('_selected_meeting_data')
+                else:
+                    selected_meeting_data = getattr(tool_context.state, '_selected_meeting_data', None)
+
+                if selected_meeting_data:
+                    print(f"DEBUG: Using meeting selected by search tool: {selected_meeting_data.get('summary', '')}")
+                    target_event_item = selected_meeting_data
+                    selection_note = "\\n> 🔍 **Selected Meeting**: Using meeting found by search.\\n"
+                else:
+                    print("DEBUG: No pre-selected meeting found, using default logic")
+            except Exception as e:
+                print(f"DEBUG: Error accessing selected meeting data: {e}")
 
         # Check for numbered meeting selection patterns
         number_patterns = [
