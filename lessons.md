@@ -286,7 +286,142 @@ After implementing these fixes:
 - `/tools/meeting_brief_wrapper.py` - ADK-compatible tool wrapper
 - `/sample/social_media/` - Reference implementation for proper ADK patterns
 
+## 🆕 Recent Updates (October 2025)
+
+### 4. **Meeting Details Format Standardization**
+
+#### Problem
+Meeting details output was inconsistent and didn't match the user's expected format with comprehensive document analysis and proper section headers.
+
+#### Root Cause Analysis
+- **Format Inconsistency**: Search tool was generating generic format instead of exact format from meeting_details_tool.py
+- **Missing Comprehensive Analysis**: Search tool wasn't implementing all analysis functions from the dedicated details tool
+- **Document Processing**: Direct meeting attachments weren't being processed in the correct format
+
+#### Solution Implemented
+```python
+# Integrated ALL functions from meeting_details_tool.py into search tool
+def _research_with_gemini(meeting_title: str, description: str, attendees: List[str]) -> str:
+def _get_historical_context(calendar_service, event_context: EventContext) -> str:
+def _build_calendar_overview(all_events: List[Dict], current_time: datetime) -> str:
+def _search_related_drive_documents(drive_service, meeting_title: str, attendee_emails: List[str], description: str = "") -> List[DriveDocument]:
+def _build_comprehensive_document_table(documents: List[DriveDocument]) -> str:
+def _process_direct_meeting_attachments(drive_service, event_data, meeting_title: str) -> str:
+```
+
+### 5. **Variable Scope Issues in Python**
+
+#### Problem
+`"Error searching for meeting: cannot access local variable 'docs_section' where it is not associated with a"` - Python scope error causing search tool crashes.
+
+#### Root Cause
+Variables like `docs_section` were being referenced before initialization in certain code paths.
+
+#### Solution Pattern
+```python
+# Initialize variables early to avoid scope issues
+docs_section = "No specific documents attached to this meeting."
+
+# Defensive variable checks
+if 'docs_section' not in locals():
+    docs_section = "No specific documents attached to this meeting."
+if 'key_challenge' not in locals():
+    key_challenge = "Review agenda and prepare talking points for effective discussion."
+```
+
+### 6. **Agent Routing Inconsistency**
+
+#### Problem
+Subject-based queries were inconsistently routed:
+- ✅ `"meeting with subject 'Grab - Google Agentspace Deep Dive Training'"` → meeting_search_agent (correct)
+- ❌ `"meeting with subject 'Grab - Agents Usecase 2 - Meeting Prep Agent'"` → meeting_brief_agent (wrong)
+
+#### Root Cause
+LLM wasn't consistently following routing instructions, leading to random routing behavior.
+
+#### Solution: Enhanced Routing Protocol
+```python
+🚨🚨🚨 **MANDATORY ROUTING PROTOCOL - ZERO EXCEPTIONS ALLOWED** 🚨🚨🚨
+
+**ROUTING DECISION TREE - FOLLOW IN EXACT ORDER:**
+
+🔍 **STEP 1: SUBJECT DETECTION (HIGHEST PRIORITY)**
+SCAN the user query for these EXACT patterns:
+- "with subject" → STOP → Route to meeting_search_agent
+- "subject:" → STOP → Route to meeting_search_agent
+- "subject \"" → STOP → Route to meeting_search_agent
+
+🛑🛑🛑 **CRITICAL ENFORCEMENT RULES** 🛑🛑🛑
+1. IF query contains "subject" in ANY form → meeting_search_agent (NEVER brief/details agents)
+2. NEVER route subject queries to brief_agent even if they say "brief"
+```
+
+## 🔧 Enhanced Debugging Techniques
+
+### 1. **Pattern Matching Debug Logs**
+```python
+print(f"DEBUG: Testing subject patterns against user_query: '{user_query}'")
+for i, pattern in enumerate(subject_patterns):
+    print(f"DEBUG: Testing pattern {i+1}: '{pattern}'")
+    match = re.search(pattern, user_query, re.IGNORECASE)
+    if match:
+        print(f"DEBUG: SUBJECT PATTERN MATCH! Pattern {i+1} extracted: '{subject_query}'")
+```
+
+### 2. **Enhanced Error Reporting**
+```python
+except Exception as e:
+    import traceback
+    error_details = traceback.format_exc()
+    print(f"DEBUG: SEARCH TOOL ERROR: {str(e)}")
+    print(f"DEBUG: FULL TRACEBACK: {error_details}")
+    return {"panel_markdown": f"Error searching for meeting: {str(e)}\\n\\nFull error details: {error_details}"}
+```
+
+### 3. **Trace Viewer Analysis**
+- Monitor `tool_call [search_meeting_tool]` execution time (should be ~21s, not failing immediately)
+- Check `gcp.vertex.agent.tool_response` for error content
+- Look for variable scope errors in tool execution logs
+
+## 🎯 Format Standardization Success
+
+### Meeting Details Format
+Successfully implemented exact format matching:
+```
+# Meeting Details: [Title]
+🕐 Time: [Day], [Date] at [Time] (SGT)
+⏱️ Duration: [Duration] (until [End Time])
+🌍 Timezone: Singapore Time (SGT)
+
+📎 **Direct Meeting Attachments**
+1. [Document Name]
+Type: [MIME Type]
+Preview: [Content Preview]
+
+📋 **Relevant Documents & Resources**
+[Numbered list with detailed metadata]
+Type: 📎 [TYPE] | Source: 📎 [SOURCE] | Relevance: ⭐⭐⭐⭐ [LEVEL]
+```
+
+## 📊 Current Success Metrics (October 2025)
+
+After implementing comprehensive fixes:
+- ✅ **Consistent routing**: Subject queries always go to meeting_search_agent
+- ✅ **Variable scope safety**: No more local variable reference errors
+- ✅ **Format standardization**: Meeting details match exact user specification
+- ✅ **Comprehensive analysis**: ALL functions from meeting_details_tool.py integrated
+- ✅ **Document processing**: Direct attachments and Drive search with content previews
+- ✅ **Error resilience**: Enhanced error handling with full traceback logging
+
+## 🔄 Architecture Evolution
+
+The system has evolved from:
+1. **Basic multi-agent routing** → **Foolproof routing with explicit patterns**
+2. **Generic meeting formats** → **Exact format matching with comprehensive analysis**
+3. **Simple error handling** → **Defensive programming with scope safety**
+4. **Basic document search** → **Multi-source document processing with relevance scoring**
+
 ---
 
-**Last Updated**: September 26, 2025
-**Status**: All critical issues resolved and deployed successfully
+**Last Updated**: October 1, 2025
+**Status**: Enhanced routing, format standardization, and error resilience deployed successfully
