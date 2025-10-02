@@ -1,12 +1,22 @@
-# 🤖 Google Calendar Meeting Prep Agent
+# 🤖 Google Calendar Meeting Prep Agent - Multi-Agent System
 
-An intelligent AI agent that automatically prepares comprehensive meeting briefs by analyzing your Google Calendar events, Drive attachments, and providing AI-powered insights for better meeting preparation.
+An intelligent multi-agent AI system that automatically prepares comprehensive meeting briefs by analyzing your Google Calendar events, Drive attachments, and providing AI-powered insights for better meeting preparation. Features specialized agents for different query types with smart routing and enhanced capabilities.
 
 ![Meeting Prep Agent Demo](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
 ![Python Version](https://img.shields.io/badge/Python-3.12+-blue)
 ![Google Cloud](https://img.shields.io/badge/Platform-Google%20Cloud%20AgentSpace-orange)
+![Multi-Agent](https://img.shields.io/badge/Architecture-Multi--Agent%20System-purple)
 
 ## 🌟 Features
+
+### 🤖 **Multi-Agent Architecture**
+- **Smart Query Routing**: Automatically determines user intent and routes to appropriate specialist
+- **Brief Agent**: Generates concise meeting summaries with key points and talking points
+- **Details Agent**: Provides comprehensive analysis with full document review and AI insights
+- **Search Agent**: Finds specific meetings by time ("2pm meeting") or subject ("meeting titled 'Planning'")
+- **Export Agent**: Saves meeting briefs to Google Docs with proper formatting
+- **Today Agent**: Lists all meetings for easy numbered selection ("brief for meeting 2")
+- **Enhanced Keywords**: Improved recognition of user intent with expanded keyword sets
 
 ### 📅 **Smart Calendar Integration**
 - Automatically fetches your next upcoming meeting from Google Calendar
@@ -273,31 +283,11 @@ When you next authenticate through AgentSpace, you'll be prompted to grant Gmail
 
 Deploy to Google Cloud AgentSpace:
 
-#### Option A: Original Monolithic Agent
+#### Multi-Agent System (Recommended)
 
 ```bash
-# Set environment variables
+# Set environment variables (automatically loaded from .env file)
 export PYTHONPATH=$(pwd):$PYTHONPATH
-export GOOGLE_CLOUD_PROJECT=your-project-id
-export GOOGLE_CLOUD_LOCATION=us-central1
-export STAGING_BUCKET=gs://your-staging-bucket
-export AUTH_ID=meeting-prep-auth
-export AGENT_DISPLAY_NAME="Meeting_Prep_Agent"
-
-# Deploy the original agent
-python agents/meeting_prep_agent.py
-```
-
-#### Option B: Multi-Agent System (Recommended)
-
-```bash
-# Set environment variables
-export PYTHONPATH=$(pwd):$PYTHONPATH
-export GOOGLE_CLOUD_PROJECT=your-project-id
-export GOOGLE_CLOUD_LOCATION=us-central1
-export STAGING_BUCKET=gs://your-staging-bucket
-export AUTH_ID=meeting-prep-multi-auth
-export AGENT_DISPLAY_NAME="Meeting_Prep_Agent_Multi"
 
 # Deploy the multi-agent system
 python agents/meeting_prep_agent_multi.py
@@ -348,10 +338,9 @@ The multi-agent system intelligently routes your requests to the appropriate spe
 - "Save the detailed analysis to my Drive"
 - "Create a document with the meeting preparation"
 
-### Original Agent Queries
+### Query Examples by Agent Type
 
-- **"Generate the meeting brief for my next meeting"**
-- **"Prepare brief for my 2pm meeting"**
+The multi-agent system automatically routes your queries to the appropriate specialist agent based on intent keywords:
 
 ### Example Output
 
@@ -469,58 +458,84 @@ The multi-agent system intelligently routes your requests to the appropriate spe
 ```
 google-calendar-agent/
 ├── agents/
-│   └── meeting_prep_agent.py    # Main agent implementation
+│   ├── meeting_prep_agent_multi.py  # Multi-agent system (recommended)
+│   └── meeting_prep_agent.py        # Legacy monolithic agent
 ├── config/
-│   └── settings.py              # Configuration management
-├── tools/                       # Utility functions
-├── tests/                       # Test suites
-├── requirements.txt             # Python dependencies
-├── .env                         # Environment configuration
-└── update_features.md           # Feature update guide
+│   └── settings.py                  # Configuration management
+├── tools/                           # Specialized agent tools
+│   ├── meeting_brief_wrapper.py     # Brief agent tool wrapper
+│   ├── meeting_details_wrapper.py   # Details agent tool wrapper
+│   ├── meeting_search_wrapper.py    # Search agent tool wrapper
+│   ├── meetings_today_wrapper.py    # Today agent tool wrapper
+│   ├── export_wrapper.py            # Export agent tool wrapper
+│   └── ...                          # Additional utility tools
+├── scripts/                         # Deployment automation
+│   ├── create_authorization.sh      # OAuth authorization setup
+│   └── create_agent.sh              # AgentSpace registration
+├── tests/                           # Test suites
+├── requirements.txt                 # Python dependencies
+├── .env                            # Environment configuration
+├── deployment_guide.md             # Comprehensive setup guide
+└── lessons.md                      # Troubleshooting and lessons learned
 ```
 
 ### Key Features Implementation
 
+- **Multi-Agent System**: Specialized agents with smart query routing
 - **Calendar Integration**: Uses Google Calendar API v3
 - **Drive Processing**: Google Drive API v3 for document access
-- **AI Analysis**: Vertex AI Gemini 2.0 Flash model
+- **AI Analysis**: Vertex AI Gemini 2.5 Flash model
 - **Agent Framework**: Google ADK (Agent Development Kit)
 - **Deployment**: Google Cloud AgentSpace
+- **Tool Wrappers**: ADK-compatible tool integration pattern
 
 ## 🔧 Development
 
-### Adding New Features
+### Adding New Features to Multi-Agent System
 
-1. **Modify the main function** in `agents/meeting_prep_agent.py`:
+1. **Create or modify tool wrappers** in `tools/` directory:
 ```python
-def prepare_meeting_brief(tool_context: ToolContext):
-    # Add your feature implementation here
+# tools/my_new_wrapper.py
+async def my_new_tool(user_request: str, tool_context: ToolContext) -> Dict[str, Any]:
+    """New tool wrapper for ADK compatibility"""
     # Keep imports within the function for deployment compatibility
+    # Implementation here
+    return {"panel_markdown": result}
 ```
 
-2. **Deploy updates**:
+2. **Add agent routing logic** in `agents/meeting_prep_agent_multi.py`:
+```python
+# Add keywords and routing logic for the new feature
+new_feature_keywords = ["keyword1", "keyword2"]
+```
+
+3. **Deploy updates**:
 ```bash
-python agents/meeting_prep_agent.py
+python agents/meeting_prep_agent_multi.py
 ```
 
-3. **Verify deployment**:
+4. **Verify deployment**:
 ```bash
 python -c "
 import vertexai
 from vertexai import agent_engines
-vertexai.init(project='your-project', location='us-central1')
-agents = list(agent_engines.list(filter='display_name=\"Meeting_Prep_Agent\"'))
+from config.settings import load_settings
+settings = load_settings()
+vertexai.init(project=settings.google_cloud_project, location=settings.google_cloud_location)
+agents = list(agent_engines.list(filter=f'display_name=\"{settings.agent_display_name}\"'))
 print(f'Found {len(agents)} agents')
 print(f'Last updated: {agents[0].update_time}')
 "
 ```
 
-### Best Practices
+### Best Practices for Multi-Agent Development
 
-- **Self-contained functions**: Keep all imports within the main function
-- **Error handling**: Always provide graceful fallbacks
-- **Content limits**: Respect API limits for document content
-- **Testing**: Test locally before deploying to AgentSpace
+- **Tool Wrapper Pattern**: Use async functions with user_request parameter for ADK compatibility
+- **Defensive State Access**: Always check state object attributes before accessing
+- **Self-contained functions**: Keep all imports within tool functions
+- **Error handling**: Always provide graceful fallbacks with comprehensive error messages
+- **Parameter passing**: Use tool wrappers to ensure proper parameter passing between agents
+- **Testing**: Test queries locally before deploying to AgentSpace
 
 ## 📊 API Integrations
 
@@ -532,6 +547,7 @@ print(f'Last updated: {agents[0].update_time}')
 ### AI/ML Services
 - **Vertex AI**: Google Cloud's ML platform
 - **Gemini 2.5 Flash**: Latest advanced language model for enhanced analysis and insights
+- **Multi-Agent Routing**: Intelligent query classification and agent selection
 
 ### Required OAuth Scopes
 ```
@@ -630,6 +646,16 @@ https://www.googleapis.com/auth/documents  # For exporting to Google Docs
    - **Solution**: First ask "how many meetings do I have left today?" to generate index
    - **Then**: Use "brief for meeting 2" to get specific meeting
 
+4. **Agent routing inconsistency**
+   - **Symptom**: Subject-based queries routed to wrong agent
+   - **Solution**: Enhanced routing protocol with mandatory pattern matching
+   - **Pattern**: Subject queries ALWAYS go to meeting_search_agent
+
+5. **Export content retrieval issues**
+   - **Symptom**: Export creates wrong document type (brief instead of details)
+   - **Solution**: Sequential workflow wrapper pattern handles content generation and storage
+   - **Verification**: Document title shows correct type and meeting name
+
 ### Debug Steps
 
 1. **Check agent logs in Google Cloud Console**
@@ -696,7 +722,8 @@ For developers working on the codebase:
 ### Quick Fix Commands
 
 ```bash
-# Redeploy multi-agent system with all fixes
+# Full multi-agent redeploy with all fixes
+export PYTHONPATH=$(pwd):$PYTHONPATH
 python agents/meeting_prep_agent_multi.py
 
 # Verify deployment
@@ -708,7 +735,9 @@ settings = load_settings()
 vertexai.init(project=settings.google_cloud_project, location=settings.google_cloud_location)
 agents = list(agent_engines.list(filter=f'display_name=\"{settings.agent_display_name}\"'))
 print(f'Found {len(agents)} agents')
-if agents: print(f'Last updated: {agents[0].update_time}')
+if agents:
+    print(f'Last updated: {agents[0].update_time}')
+    print(f'Resource name: {agents[0].resource_name}')
 "
 ```
 
@@ -751,9 +780,14 @@ Security is a top priority. Please review our [Security Guidelines](SECURITY.md)
 
 ---
 
-**⚡ Agent Status**: Production Ready with Fixed Export Functionality
-**📅 Last Updated**: September 29, 2025
+**⚡ Agent Status**: Production Ready Multi-Agent System with Enhanced Capabilities
+**📅 Last Updated**: October 2, 2025
 **🚀 Agent Resource**: `projects/777331773170/locations/us-central1/reasoningEngines/4217220828799959040`
-**🎯 Multi-Agent System**: grab-meeting-prep-multi-docs_Multi
+**🎯 Multi-Agent System**: Meeting_Prep_Agent_Multi (5 specialized agents + root coordinator)
 **🔑 Authorization**: `grab_meeting_multi_doc_v2`
-**🔧 Export Enhancement**: Sequential workflow with proper content retrieval
+**🤖 Architecture**: Smart routing with priority-based query classification
+**🔧 Latest Enhancements**:
+- Fixed export content retrieval with sequential workflow pattern
+- Enhanced agent routing with mandatory subject pattern matching
+- Comprehensive error handling and defensive state access
+- Improved tool wrapper pattern for ADK compatibility

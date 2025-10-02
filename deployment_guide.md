@@ -1,381 +1,584 @@
-# 🚀 Meeting Prep Agent: Deployment Guide
+# 🚀 Meeting Prep Agent: Complete Deployment Guide
 
-This guide provides step-by-step instructions to deploy the Google Calendar Meeting Prep Agent from scratch, including project setup, authentication, and deployment to Google Cloud AgentSpace.
+This comprehensive guide provides step-by-step instructions to deploy the Google Calendar Meeting Prep Agent Multi-Agent System from scratch, including detailed Google Cloud setup, OAuth configuration, and deployment to AgentSpace.
 
 ## 📋 Prerequisites
 
 Before you begin, ensure you have the following:
 
-- A Google Cloud Project with billing enabled.
-- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) (`gcloud`) installed and authenticated.
-- [Python 3.12+](https://www.python.org/downloads/) installed.
-- `git` installed on your local machine.
-- `jq` command-line JSON processor installed (for better script output formatting).
+- **Google Cloud Account** with billing enabled
+- **Google Workspace Account** (for Calendar, Drive, Gmail, Chat access)
+- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) (`gcloud`) installed and authenticated
+- [Python 3.12+](https://www.python.org/downloads/) installed
+- `git` installed on your local machine
+- `jq` command-line JSON processor installed (for better script output formatting)
+- Basic understanding of command line operations
 
-## Step 1: Google Cloud Project Setup
+## 🏗️ Step 1: Google Cloud Project Setup
 
-1.  **Select Your Project**:
-    Set your active Google Cloud project.
-    ```bash
-    gcloud config set project YOUR_PROJECT_ID
-    ```
+### 1.1 Create or Select Project
 
-2.  **Enable Required APIs**:
-    Enable all necessary APIs for the agent to function.
-    ```bash
-    gcloud services enable \
-        calendar-json.googleapis.com \
-        drive.googleapis.com \
-        discoveryengine.googleapis.com \
-        aiplatform.googleapis.com \
-        oauth2.googleapis.com \
-        gmail.googleapis.com \
-        chat.googleapis.com
-    ```
+1. **Create a new project** (or use an existing one):
+   ```bash
+   # Create new project
+   gcloud projects create your-project-id --name="Meeting Prep Agent"
 
-## Step 2: OAuth 2.0 Configuration
+   # Set as active project
+   gcloud config set project your-project-id
+   ```
 
-The agent requires OAuth 2.0 credentials to access Google services on behalf of the user.
+2. **Enable billing** for the project:
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Navigate to **Billing** and link a billing account to your project
 
-1.  **Configure OAuth Consent Screen**:
-    -   In the Google Cloud Console, navigate to **APIs & Services -> OAuth consent screen**.
-    -   Choose **External** and create a new consent screen.
-    -   Add the following scopes:
-        ```
-        https://www.googleapis.com/auth/calendar.readonly
-        https://www.googleapis.com/auth/drive.readonly
-        https://www.googleapis.com/auth/userinfo.email
-        https://www.googleapis.com/auth/chat.spaces.readonly
-        https://www.googleapis.com/auth/chat.messages.readonly
-        https://www.googleapis.com/auth/gmail.readonly
-        https://www.googleapis.com/auth/documents
-        ```
-    -   Add your email to the list of **Test users**.
+### 1.2 Enable Required APIs
 
-2.  **Create OAuth 2.0 Client ID**:
-    -   Navigate to **APIs & Services -> Credentials**.
-    -   Click **+ CREATE CREDENTIALS** and select **OAuth client ID**.
-    -   Select **Web application** for the application type.
-    -   Under **Authorized redirect URIs**, add the following:
-        -   `https://vertexaisearch.cloud.google.com/oauth-redirect`
-        -   `http://localhost:8080/` (for local testing with `adk web`)
-    -   Click **Create**.
-    -   Copy the **Client ID** and **Client Secret**. You will need them for the `.env` file.
+Enable all necessary APIs for the multi-agent system:
 
-## Step 3: Local Environment Setup
-
-1.  **Clone the Repository**:
-    ```bash
-    git clone https://github.com/leeahnduk/google-calendar-agent.git
-    cd google-calendar-agent
-    ```
-
-2.  **Create and Activate Virtual Environment**:
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    ```
-
-3.  **Install Dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-## Step 4: Configuration File (`.env`)
-
-1.  **Create `.env` file**:
-    Copy the example file to create your own configuration.
-    ```bash
-    cp .env.example .env
-    ```
-
-2.  **Edit `.env`**:
-    Open the `.env` file and fill in the values based on your Google Cloud project and the OAuth credentials you just created.
-
-    ```dotenv
-    # Google Cloud Configuration
-    GOOGLE_CLOUD_PROJECT="your-project-id"
-    GOOGLE_CLOUD_PROJECT_NUMBER="your-project-number"
-    GOOGLE_CLOUD_LOCATION="us-central1"
-    STAGING_BUCKET="gs://your-gcs-staging-bucket" # Create a new GCS bucket if you don't have one
-
-    # OAuth Credentials
-    CLIENT_ID="your-oauth-client-id.apps.googleusercontent.com"
-    CLIENT_SECRET="your-oauth-client-secret"
-    SCOPES="https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/chat.spaces.readonly https://www.googleapis.com/auth/chat.messages.readonly https://www.googleapis.com/auth/gmail.readonly"
-
-    # Agent Configuration
-    AGENT_DISPLAY_NAME="Meeting_Prep_Agent"
-    AUTH_ID="meeting-prep-auth-v1" # A unique ID for your authorization
-
-    # AgentSpace Configuration (if deploying to AgentSpace)
-    AS_APP="your-agentspace-app-id"
-    ASSISTANT_ID="default_assistant"
-    AGENT_NAME="meeting-prep-agent-v1" # A unique name for your agent in AgentSpace
-    AGENT_DESCRIPTION="A smart agent that prepares you for meetings."
-    TOOL_DESCRIPTION="Prepares a comprehensive meeting brief by analyzing calendar events, attachments, and related documents."
-
-    # This will be filled in after the first deployment
-    REASONING_ENGINE=""
-    ```
-
-## Step 5: Deploy the Agent to Agent Engine
-
-This step packages your agent code and deploys it as a "Reasoning Engine" in Vertex AI.
-
-### Option A: Deploy the Original Monolithic Agent
-
-1.  **Run the Deployment Script**:
-    This command activates the environment, sets the correct Python path, and runs the deployment.
-    ```bash
-    source venv/bin/activate && \
-    export PYTHONPATH=$(pwd):$PYTHONPATH && \
-    python agents/meeting_prep_agent.py
-    ```
-    This process may take 2-5 minutes.
-
-### Option B: Deploy the Multi-Agent System (Recommended)
-
-1.  **Deploy the Multi-Agent System**:
-    This command deploys the new multi-agent architecture with specialized agents for different query types.
-    ```bash
-    source venv/bin/activate && \
-    export PYTHONPATH=$(pwd):$PYTHONPATH && \
-    python agents/meeting_prep_agent_multi.py
-    ```
-    This process may take 2-5 minutes.
-
-    **Multi-Agent Benefits:**
-    - **Smart Query Routing**: Automatically routes requests to specialized agents
-    - **Brief Agent**: Quick summaries and overviews
-    - **Details Agent**: Comprehensive analysis and insights
-    - **Search Agent**: Find specific meetings by time or subject
-    - **Export Agent**: Save briefs to Google Docs
-    - **Enhanced Keywords**: Better intent recognition and response matching
-
-2.  **Update `.env` with Reasoning Engine Name**:
-    After the script finishes, it will output the `Resource name` of the agent engine. Copy this value.
-    -   **Example output**: `✅ Multi-agent system created: projects/12345/locations/us-central1/reasoningEngines/67890`
-    -   Open your `.env` file and paste this value into the `REASONING_ENGINE` variable.
-
-3.  **Update Agent Display Name**:
-    If deploying the multi-agent system, consider updating your `.env` file:
-    ```bash
-    AGENT_DISPLAY_NAME="Meeting_Prep_Agent_Multi"
-    AUTH_ID="meeting-prep-multi-auth"
-    ```
-
-## Step 6: Deploy to AgentSpace
-
-Now, register the deployed agent engine with AgentSpace.
-
-1.  **Create AgentSpace Authorization**:
-    This script uses your OAuth credentials from the `.env` file to create an authorization profile in AgentSpace.
-    ```bash
-    ./scripts/create_authorization.sh
-    ```
-    On success, it will confirm that the authorization was created.
-
-2.  **Create AgentSpace Agent**:
-    This final script links your reasoning engine to AgentSpace, making it available in the web UI.
-    ```bash
-    ./scripts/create_agent.sh
-    ```
-    On success, it will confirm that the agent was created.
-
-## Step 7: Verification and Testing
-
-1.  **Verify with the Script**:
-    Run the verification script to confirm the agent is deployed and the timestamp is recent.
-    ```bash
-    source venv/bin/activate && \
-    python -c "
-    from dotenv import load_dotenv
-    from config.settings import load_settings
-    import vertexai
-    from vertexai import agent_engines
-
-    load_dotenv()
-    settings = load_settings()
-
-    vertexai.init(project=settings.google_cloud_project, location=settings.google_cloud_location)
-    agents = list(agent_engines.list(filter=f'display_name=\"{settings.agent_display_name}\"'))
-    print(f'Found {len(agents)} agents with display name \"{settings.agent_display_name}\"')
-    for agent in agents:
-        print(f'Agent: {agent.display_name}')
-        print(f'Updated: {agent.update_time}')
-    "
-    ```
-
-2.  **Test in AgentSpace UI**:
-    -   Navigate to the AgentSpace web interface for your project.
-    -   Find your newly deployed agent ("Meeting_Prep_Agent").
-    -   Initiate a chat and grant the necessary permissions when the OAuth flow begins.
-    -   Test with a query like: `Prepare a brief for my next meeting.`
-
-## Troubleshooting
-
-### Common Deployment Issues
-
--   **OAuth Errors**: If you see permission errors, ensure all required scopes are added to your OAuth consent screen and that your test user is added. You may need to re-run the `./scripts/create_authorization.sh` script if you change scopes.
--   **Deployment Timeouts**: The `python agents/meeting_prep_agent.py` command can sometimes appear to time out. This is often normal. Use the verification script in Step 7 to check if the deployment succeeded.
--   **Agent Not Found in UI**: If the agent doesn't appear in AgentSpace, ensure that both `create_authorization.sh` and `create_agent.sh` ran successfully and that all variables in your `.env` file are correct.
-
-### Multi-Agent System Specific Issues
-
-#### 1. **State Access Errors**
-**Symptom**: `'State' object has no attribute 'keys'` during tool execution
-**Solution**: Fixed in the latest version with defensive state access patterns. Ensure you're using the latest code:
 ```bash
-git pull origin main  # Get latest fixes
-python agents/meeting_prep_agent_multi.py  # Redeploy
+gcloud services enable \
+    calendar-json.googleapis.com \
+    drive.googleapis.com \
+    discoveryengine.googleapis.com \
+    aiplatform.googleapis.com \
+    oauth2.googleapis.com \
+    gmail.googleapis.com \
+    chat.googleapis.com \
+    docs.googleapis.com \
+    cloudresourcemanager.googleapis.com
 ```
 
-#### 2. **User Query Not Passed to Tools**
-**Symptom**: Agent always returns brief for "next meeting" instead of specific requested meeting
-**Solution**: Fixed with proper tool wrapper implementation. Verify in trace viewer:
-- Check `gcp.vertex.agent.tool_call_args` should show: `{"user_request": "your query"}`
-- If empty `{}`, redeploy the latest version
+### 1.3 Get Project Information
 
-#### 3. **Debug Output Not Visible**
-**Symptom**: Can't see debug logs in Google Cloud Trace viewer
-**Solution**: Fixed with logging configuration to suppress ALTS warnings. Latest version includes proper debug output.
+Collect project details needed for configuration:
 
-#### 4. **Numbered Meeting Selection Not Working**
-**Symptom**: "brief for meeting 2" doesn't work correctly
-**Solution**:
-1. First ask: "how many meetings do I have left today?" to generate the meeting index
-2. Then use: "brief for meeting 2" to get the specific meeting
-
-#### 5. **Export Tool Using Wrong Content Type**
-**Symptom**: Export to Google Docs creates "Meeting Brief Notes" even when requesting details export
-**Solution**: Fixed with export wrapper pattern in latest version
-- **Root Cause**: Export tool was using cached brief content instead of fresh details content
-- **Fix**: Created `tools/export_wrapper.py` that handles sequential workflow automatically
-- **Verification**: Document title should show correct type: "Meeting [Brief/Details] Notes - [Meeting Name] - [Time]"
-
-#### 6. **Export Agent Tool Workflow Issues**
-**Symptom**: Multiple tool calls in export agent not sharing content properly
-**Solution**:
-1. **Updated Export Agent**: Now uses single `export_to_google_docs_tool_wrapper` call
-2. **Wrapper Pattern**: Handles content generation → storage → export automatically
-3. **Content Detection**: Automatically detects brief vs details from user request
-4. **Fresh Content**: Always generates new content for numbered meetings
-
-### Advanced Troubleshooting
-
-#### 1. **Syntax Validation Before Deployment**
 ```bash
-# Validate multi-agent syntax
+# Get project ID (if you don't know it)
+gcloud config get-value project
+
+# Get project number
+gcloud projects describe $(gcloud config get-value project) --format="value(projectNumber)"
+
+# Note your preferred region (us-central1 recommended for Vertex AI)
+echo "us-central1"
+```
+
+### 1.4 Create Storage Bucket
+
+Create a bucket for agent staging:
+
+```bash
+# Replace 'your-unique-bucket-name' with a globally unique name
+gsutil mb gs://your-unique-bucket-name-meeting-agent-staging
+
+# Verify bucket creation
+gsutil ls | grep meeting-agent-staging
+```
+
+## 🔐 Step 2: OAuth 2.0 Configuration
+
+### 2.1 Configure OAuth Consent Screen
+
+1. **Navigate to OAuth consent screen**:
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Navigate to **APIs & Services** → **OAuth consent screen**
+
+2. **Select User Type**:
+   - Choose **External** (unless you're in a Google Workspace organization)
+   - Click **CREATE**
+
+3. **Fill OAuth consent screen information**:
+   ```
+   App name: Meeting Prep Agent
+   User support email: your-email@domain.com
+   App logo: (optional)
+   Application home page: (optional)
+   Application privacy policy link: (optional)
+   Application terms of service link: (optional)
+   Authorized domains: (leave empty for development)
+   Developer contact information: your-email@domain.com
+   ```
+
+4. **Add required scopes**:
+   Click **ADD OR REMOVE SCOPES** and add:
+   ```
+   https://www.googleapis.com/auth/calendar.readonly
+   https://www.googleapis.com/auth/drive.readonly
+   https://www.googleapis.com/auth/userinfo.email
+   https://www.googleapis.com/auth/chat.spaces.readonly
+   https://www.googleapis.com/auth/chat.messages.readonly
+   https://www.googleapis.com/auth/gmail.readonly
+   https://www.googleapis.com/auth/documents
+   ```
+
+5. **Add test users**:
+   - Add your Google account email as a test user
+   - Add any other users who will test the agent
+
+6. **Review and submit** for verification (or keep in testing mode)
+
+### 2.2 Create OAuth 2.0 Client Credentials
+
+1. **Navigate to Credentials**:
+   - Go to **APIs & Services** → **Credentials**
+
+2. **Create OAuth client ID**:
+   - Click **+ CREATE CREDENTIALS** → **OAuth client ID**
+   - Application type: **Web application**
+   - Name: `Meeting Prep Agent Client`
+
+3. **Configure authorized redirect URIs**:
+   Add these URIs:
+   ```
+   https://vertexaisearch.cloud.google.com/oauth-redirect
+   http://localhost:8080/
+   ```
+
+4. **Save and download credentials**:
+   - Click **CREATE**
+   - **Copy the Client ID and Client Secret** (you'll need these for .env file)
+   - Optionally download the JSON file for backup
+
+## 💻 Step 3: Local Development Environment Setup
+
+### 3.1 Clone and Setup Repository
+
+```bash
+# Clone the repository
+git clone https://github.com/leeahnduk/google-calendar-agent.git
+cd google-calendar-agent
+
+# Create and activate virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 3.2 Configure Environment Variables
+
+1. **Create environment file**:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Edit .env file** with your project details:
+   ```bash
+   # Open in your preferred editor
+   nano .env  # or vim .env or code .env
+   ```
+
+3. **Fill in the required values** (see next section for detailed explanation)
+
+## ⚙️ Step 4: Environment Configuration (.env file)
+
+Here's a complete `.env` file template with explanations:
+
+```bash
+# =============================================================================
+# Google Cloud Configuration
+# =============================================================================
+
+# Your Google Cloud Project ID (from Step 1.3)
+GOOGLE_CLOUD_PROJECT=your-project-id
+
+# Your Google Cloud Project Number (from Step 1.3)
+GOOGLE_CLOUD_PROJECT_NUMBER=123456789012
+
+# Google Cloud region (us-central1 recommended for Vertex AI)
+GOOGLE_CLOUD_LOCATION=us-central1
+
+# Google Cloud Storage staging bucket (from Step 1.4)
+STAGING_BUCKET=gs://your-unique-bucket-name-meeting-agent-staging
+
+# =============================================================================
+# Multi-Agent System Configuration
+# =============================================================================
+
+# Display name for the multi-agent system (will appear in AgentSpace)
+AGENT_DISPLAY_NAME=Meeting_Prep_Agent_Multi
+
+# OAuth authorization ID (create a unique identifier)
+AUTH_ID=meeting-prep-multi-auth-v1
+
+# =============================================================================
+# OAuth 2.0 Credentials (from Step 2.2)
+# =============================================================================
+
+# Google OAuth 2.0 Client ID
+CLIENT_ID=your-client-id.apps.googleusercontent.com
+
+# Google OAuth 2.0 Client Secret
+CLIENT_SECRET=your-client-secret
+
+# OAuth 2.0 scopes (space-separated, required for AgentSpace authorization)
+SCOPES="https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/chat.spaces.readonly https://www.googleapis.com/auth/chat.messages.readonly https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/documents"
+
+# =============================================================================
+# AgentSpace Configuration (will be filled after initial deployment)
+# =============================================================================
+
+# AgentSpace app/engine ID (leave empty initially)
+AS_APP=
+
+# Assistant ID within the AgentSpace app
+ASSISTANT_ID=default_assistant
+
+# Internal agent name (lowercase, hyphens, no spaces)
+AGENT_NAME=meeting-prep-multi-agent
+
+# Agent description for AgentSpace
+AGENT_DESCRIPTION="Multi-agent system for comprehensive meeting preparation with smart routing"
+
+# Tool description for AgentSpace
+TOOL_DESCRIPTION="Specialized agents for meeting briefs, details, search, export, and scheduling"
+
+# Reasoning engine resource name (set after deploying)
+REASONING_ENGINE=
+
+# =============================================================================
+# AI Model Configuration
+# =============================================================================
+
+# Primary agent AI model
+ROOT_AGENT_MODEL=gemini-2.5-flash
+
+# Sub-agent AI model
+SUB_AGENT_MODEL=gemini-2.5-flash
+
+# =============================================================================
+# Agent Behavior Settings
+# =============================================================================
+
+# Minutes before meeting start to prepare brief
+BRIEF_LEAD_MINUTES=30
+
+# Days to look back for historical meeting context
+HISTORICAL_LOOKBACK_DAYS=90
+
+# =============================================================================
+# Chat Integration Settings
+# =============================================================================
+
+# Enable Google Chat integration
+GOOGLE_CHAT_ENABLED=true
+
+# Chat integration preference: "slack", "google_chat", or "both"
+CHAT_INTEGRATION_PREFERENCE=both
+
+# =============================================================================
+# Optional: Slack Integration
+# =============================================================================
+
+# Slack bot token (optional, see Slack setup section)
+SLACK_BOT_TOKEN=
+
+# Slack signing secret (optional)
+SLACK_SIGNING_SECRET=
+```
+
+## 🚀 Step 5: Deploy Multi-Agent System
+
+### 5.1 Deploy the Reasoning Engine
+
+Deploy the multi-agent system to Google Cloud:
+
+```bash
+# Ensure virtual environment is activated
+source venv/bin/activate
+
+# Set Python path for imports
+export PYTHONPATH=$(pwd):$PYTHONPATH
+
+# Deploy the multi-agent system
+python agents/meeting_prep_agent_multi.py
+```
+
+**Expected output:**
+```
+Creating multi-agent system...
+Uploading reasoning engine...
+✅ Multi-agent system created: projects/123456789012/locations/us-central1/reasoningEngines/987654321
+```
+
+### 5.2 Update Environment with Reasoning Engine
+
+1. **Copy the reasoning engine resource name** from the output above
+
+2. **Update your .env file**:
+   ```bash
+   # Add the reasoning engine resource name to your .env file
+   echo "REASONING_ENGINE=projects/123456789012/locations/us-central1/reasoningEngines/987654321" >> .env
+   ```
+
+### 5.3 Verify Deployment
+
+```bash
 python -c "
-import sys
-import os
-sys.path.append('.')
-from agents.meeting_prep_agent_multi import root_agent
-print('✅ Multi-agent syntax validation passed')
+import vertexai
+from vertexai import agent_engines
+from config.settings import load_settings
+
+settings = load_settings()
+vertexai.init(project=settings.google_cloud_project, location=settings.google_cloud_location)
+agents = list(agent_engines.list(filter=f'display_name=\"{settings.agent_display_name}\"'))
+print(f'✅ Found {len(agents)} agents')
+if agents:
+    print(f'📅 Last updated: {agents[0].update_time}')
+    print(f'🚀 Resource: {agents[0].resource_name}')
 "
 ```
 
-#### 2. **Import Path Issues**
-If you see module import errors:
+## 🏢 Step 6: AgentSpace Registration
+
+### 6.1 Create OAuth Authorization
+
+Create the OAuth authorization in AgentSpace:
+
 ```bash
-# Ensure proper Python path
+# Make script executable
+chmod +x scripts/create_authorization.sh
+
+# Create authorization (this will use your .env settings)
+./scripts/create_authorization.sh
+```
+
+**Expected output:**
+```
+✅ Authorization created successfully: meeting-prep-multi-auth-v1
+```
+
+### 6.2 Register Agent in AgentSpace
+
+Register the reasoning engine with AgentSpace:
+
+```bash
+# Make script executable
+chmod +x scripts/create_agent.sh
+
+# Register agent in AgentSpace
+./scripts/create_agent.sh
+```
+
+**Expected output:**
+```
+✅ Agent registered successfully in AgentSpace
+Agent ID: 1234567890123456789
+```
+
+### 6.3 Find Your Agent in AgentSpace
+
+1. **Navigate to AgentSpace**:
+   - Go to https://vertexaisearch.cloud.google.com/
+   - Sign in with your Google account
+
+2. **Locate your agent**:
+   - Look for your agent under "From your organization"
+   - Agent name: Meeting_Prep_Agent_Multi
+
+## 🧪 Step 7: Testing and Verification
+
+### 7.1 Test Multi-Agent Routing
+
+Test different query types to verify agent routing:
+
+1. **Brief queries**:
+   ```
+   "Give me a brief for my next meeting"
+   "Quick summary of my 2pm meeting"
+   ```
+
+2. **Details queries**:
+   ```
+   "I need detailed analysis of my project review meeting"
+   "Comprehensive insights for tomorrow's board meeting"
+   ```
+
+3. **Search queries**:
+   ```
+   "Meeting at 3pm today"
+   "Meeting with subject 'Sprint Planning'"
+   ```
+
+4. **Export queries**:
+   ```
+   "Export details for meeting 2 to Google Docs"
+   "Save brief for my next meeting to Drive"
+   ```
+
+### 7.2 Verify OAuth Permissions
+
+During first use, you'll be prompted to grant permissions:
+
+1. **Click "Authorize"** when prompted
+2. **Select your Google account**
+3. **Grant all requested permissions**:
+   - Calendar (read-only)
+   - Drive (read-only)
+   - Gmail (read-only)
+   - Chat (read-only)
+   - Docs (create/edit)
+
+### 7.3 Test Core Functionality
+
+1. **Basic meeting brief**:
+   ```
+   Query: "Prepare brief for my next meeting"
+   Expected: Meeting details with attachments and AI insights
+   ```
+
+2. **Numbered meeting selection**:
+   ```
+   Step 1: "How many meetings do I have today?"
+   Step 2: "Brief for meeting 2"
+   Expected: Brief for specific meeting
+   ```
+
+3. **Document export**:
+   ```
+   Query: "Export details for my next meeting to Google Docs"
+   Expected: Google Doc created with comprehensive meeting details
+   ```
+
+## 🔧 Step 8: Optional Integrations
+
+### 8.1 Slack Integration (Optional)
+
+If you want Slack integration:
+
+1. **Create Slack App**:
+   - Visit https://api.slack.com/apps
+   - Create new app "From scratch"
+   - Name: "Meeting Prep Agent"
+
+2. **Configure permissions**:
+   - Go to "OAuth & Permissions"
+   - Add Bot Token Scopes:
+     ```
+     channels:history
+     channels:read
+     users:read
+     ```
+
+3. **Install to workspace** and copy Bot User OAuth Token
+
+4. **Update .env file**:
+   ```bash
+   SLACK_BOT_TOKEN=xoxb-your-token-here
+   SLACK_SIGNING_SECRET=your-signing-secret
+   ```
+
+### 8.2 Advanced Configuration
+
+For advanced users, you can customize:
+
+- **Agent behavior settings** in .env file
+- **AI model versions** (when new models are available)
+- **Historical lookback period** for meeting context
+- **Chat integration preferences**
+
+## 🔍 Troubleshooting
+
+### Common Issues and Solutions
+
+#### Issue 1: "No access token available"
+**Symptom**: Agent can't access Google APIs
+**Solution**:
+1. Verify OAuth scopes in consent screen
+2. Re-authorize in AgentSpace
+3. Check AUTH_ID matches in all tool files
+
+#### Issue 2: "Agent not found in AgentSpace"
+**Symptom**: Agent doesn't appear in UI
+**Solution**:
+1. Verify reasoning engine deployment
+2. Check AgentSpace registration script output
+3. Ensure AS_APP variable is set correctly
+
+#### Issue 3: "Import errors during deployment"
+**Symptom**: Python import failures
+**Solution**:
+```bash
+# Ensure Python path is set
 export PYTHONPATH=$(pwd):$PYTHONPATH
-python agents/meeting_prep_agent_multi.py
-```
 
-#### 3. **State Access Debugging**
-Add to tools for debugging state issues:
-```python
-print(f"DEBUG: tool_context.state type: {type(tool_context.state)}")
-print(f"DEBUG: Available state methods: {[m for m in dir(tool_context.state) if not m.startswith('_')]}")
-```
-
-#### 4. **Callback Context Analysis**
-Debug callback context in setup functions:
-```python
-print(f"DEBUG: callback_context attributes: {[attr for attr in dir(callback_context) if not attr.startswith('_')]}")
-```
-
-### Testing Multi-Agent Features
-
-#### 1. **Basic Functionality Test**
-```
-Query: "Give me a brief for my next meeting"
-Expected: Quick, formatted meeting brief
-```
-
-#### 2. **Numbered Selection Test**
-```
-Step 1: "How many meetings do I have left today?"
-Step 2: "Brief for meeting 2"
-Expected: Brief for the second meeting in the list
-```
-
-#### 3. **Time-Based Search Test**
-```
-Query: "Meeting at 3:00pm today"
-Expected: Brief for meeting starting at 3:00pm
-```
-
-#### 4. **Subject-Based Search Test**
-```
-Query: "Meeting with subject 'Budget Planning'"
-Expected: Brief for meeting matching that subject
-```
-
-#### 5. **Export Functionality Test**
-```
-Step 1: "export details for meeting 2 to Google Docs"
-Expected: Document titled "Meeting Details Notes - [Meeting Name] - [Time]" with comprehensive content
-
-Step 2: "export brief for meeting 3 to Google Docs"
-Expected: Document titled "Meeting Brief Notes - [Meeting Name] - [Time]" with concise content
-```
-
-### Performance Optimization
-
-#### 1. **Deployment Speed**
-- Multi-agent deployment typically takes 2-5 minutes
-- Use verification script to confirm completion
-- No need to wait for UI refresh - verification script is authoritative
-
-#### 2. **Response Time**
-- Brief agent: 3-8 seconds for quick summaries
-- Details agent: 8-15 seconds for comprehensive analysis
-- Search agent: 2-5 seconds for meeting lookup
-
-#### 3. **Memory Management**
-- Large documents are processed with content limits
-- Attachment processing is optimized for performance
-- Pagination used for large meeting lists
-
-### Quick Fix Commands
-
-```bash
-# Full redeploy with all fixes
+# Verify virtual environment
 source venv/bin/activate
-export PYTHONPATH=$(pwd):$PYTHONPATH
-python agents/meeting_prep_agent_multi.py
+pip install -r requirements.txt
+```
 
-# Verify deployment success
+#### Issue 4: "Multi-agent routing issues"
+**Symptom**: Wrong agent handles query
+**Solution**:
+1. Check query keywords in trace viewer
+2. Verify routing logic in agent code
+3. Test with explicit keywords
+
+### Debug Commands
+
+```bash
+# Verify environment configuration
+python -c "from config.settings import load_settings; print(load_settings().__dict__)"
+
+# Check agent deployment status
 python -c "
 import vertexai
 from vertexai import agent_engines
 from config.settings import load_settings
 settings = load_settings()
 vertexai.init(project=settings.google_cloud_project, location=settings.google_cloud_location)
-agents = list(agent_engines.list(filter=f'display_name=\"{settings.agent_display_name}\"'))
-print(f'Found {len(agents)} agents')
-if agents:
-    print(f'Last updated: {agents[0].update_time}')
-    print(f'Resource name: {agents[0].resource_name}')
+agents = list(agent_engines.list())
+for agent in agents:
+    print(f'{agent.display_name}: {agent.update_time}')
+"
+
+# Test tool syntax
+python -c "
+import sys
+sys.path.append('.')
+from agents.meeting_prep_agent_multi import root_agent
+print('✅ Multi-agent syntax validation passed')
 "
 ```
 
-### Getting Additional Help
+### Getting Help
 
-- **Comprehensive Debugging Guide**: See [lessons.md](lessons.md) for detailed troubleshooting patterns
-- **GitHub Issues**: [Report issues](https://github.com/leeahnduk/google-calendar-agent/issues)
-- **Multi-Agent Architecture**: See [MultiAgent_Revamp_Plan.md](MultiAgent_Revamp_Plan.md)
-- **Security Guidelines**: See [SECURITY.md](SECURITY.md)
+- **GitHub Issues**: [Report problems](https://github.com/leeahnduk/google-calendar-agent/issues)
+- **Detailed Troubleshooting**: See [lessons.md](lessons.md)
+- **Google Cloud Support**: For platform-specific issues
+
+## 📋 Quick Reference
+
+### Environment Variables Checklist
+- [ ] GOOGLE_CLOUD_PROJECT
+- [ ] GOOGLE_CLOUD_PROJECT_NUMBER
+- [ ] GOOGLE_CLOUD_LOCATION
+- [ ] STAGING_BUCKET
+- [ ] CLIENT_ID
+- [ ] CLIENT_SECRET
+- [ ] AUTH_ID
+- [ ] AGENT_DISPLAY_NAME
+
+### Deployment Commands
+```bash
+# Complete deployment sequence
+source venv/bin/activate
+export PYTHONPATH=$(pwd):$PYTHONPATH
+python agents/meeting_prep_agent_multi.py
+./scripts/create_authorization.sh
+./scripts/create_agent.sh
+```
+
+### Verification Commands
+```bash
+# Verify agent deployment
+python -c "from config.settings import load_settings; from vertexai import agent_engines; import vertexai; s=load_settings(); vertexai.init(project=s.google_cloud_project, location=s.google_cloud_location); agents=list(agent_engines.list(filter=f'display_name=\"{s.agent_display_name}\"')); print(f'Found {len(agents)} agents'); [print(f'Updated: {a.update_time}') for a in agents]"
+```
+
+---
+
+**🎯 Deployment Status**: Ready for Production
+**📅 Last Updated**: October 2, 2025
+**🏗️ Architecture**: Multi-Agent System with 5 specialized agents
+**🔧 Compatibility**: Google Cloud AgentSpace, Python 3.12+, ADK Framework

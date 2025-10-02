@@ -1,6 +1,6 @@
 # 📚 Lessons Learned: Multi-Agent Meeting Prep System
 
-This document captures critical lessons learned during the development and troubleshooting of the multi-agent meeting preparation system, specifically focusing on issues with user query parameter passing and ADK framework integration.
+This document captures critical lessons learned during the development and troubleshooting of the multi-agent meeting preparation system, specifically focusing on issues with user query parameter passing, ADK framework integration, and comprehensive deployment strategies for Google Cloud AgentSpace.
 
 ## 🚨 Critical Issues Discovered
 
@@ -213,6 +213,80 @@ async def my_tool(param: str, tool_context: ToolContext) -> Dict[str, Any]:
 - Always configure logging to suppress ALTS warnings
 - Essential for effective debugging in trace viewer
 
+## 🚀 Multi-Agent Deployment Patterns
+
+### 1. **Environment Configuration Management**
+
+#### Best Practice: Centralized Configuration
+```python
+# config/settings.py - Single source of truth for all configuration
+class Settings:
+    def __init__(self):
+        self.google_cloud_project = os.getenv("GOOGLE_CLOUD_PROJECT")
+        self.auth_id = os.getenv("AUTH_ID", "grab_meeting_multi_doc_v2")
+        # ... other settings
+
+# In all tool files:
+from config.settings import load_settings
+settings = load_settings()
+auth_id = settings.auth_id  # Instead of hardcoded default
+```
+
+### 2. **Tool Wrapper Architecture**
+
+#### Pattern: Consistent ADK Integration
+```python
+# tools/{feature}_wrapper.py
+async def feature_tool(user_request: str, tool_context: ToolContext) -> Dict[str, Any]:
+    """
+    ADK-compatible tool wrapper pattern
+
+    Args:
+        user_request: The complete user query for context
+        tool_context: ADK tool context with auth and state
+
+    Returns:
+        Dict with panel_markdown key for AgentSpace display
+    """
+    try:
+        # Import dependencies within function
+        from .feature_implementation import core_feature_logic
+
+        # Extract user intent and parameters
+        # Call core implementation
+        # Return formatted result
+
+        return {"panel_markdown": formatted_result}
+    except Exception as e:
+        return {"panel_markdown": f"Error: {str(e)}"}
+```
+
+### 3. **Agent Routing Protocol**
+
+#### Mandatory Routing Decision Tree
+```python
+def route_user_query(user_query: str) -> str:
+    """Deterministic routing with priority order"""
+
+    # Priority 1: Export requests (highest priority)
+    if any(kw in user_query.lower() for kw in ["export", "save", "google docs"]):
+        return "export_agent"
+
+    # Priority 2: Subject-based search
+    if "subject" in user_query.lower():
+        return "meeting_search_agent"
+
+    # Priority 3: Time-based search
+    if any(kw in user_query.lower() for kw in ["at ", "meeting 1", "meeting 2"]):
+        return "meeting_search_agent"
+
+    # Priority 4: Details vs Brief classification
+    if any(kw in user_query.lower() for kw in ["detail", "comprehensive", "full"]):
+        return "meeting_details_agent"
+    else:
+        return "meeting_brief_agent"
+```
+
 ## 🎯 Best Practices for ADK Multi-Agent Systems
 
 ### 1. **Tool Design**
@@ -288,7 +362,39 @@ After implementing these fixes:
 
 ## 🆕 Recent Updates (October 2025)
 
-### 4. **Meeting Details Format Standardization**
+### 4. **AUTH_ID Environment Variable Management**
+
+#### Problem
+Hard-coded AUTH_ID defaults in tool files caused "No access token available" errors when deploying with different OAuth authorization IDs.
+
+#### Root Cause Analysis
+- **Environment Variable Isolation**: Tools running in AgentSpace don't automatically load .env files
+- **Hard-coded Fallbacks**: All tools had static default AUTH_IDs that didn't match deployment AUTH_ID
+- **Token Key Mismatch**: When AUTH_ID changed to `grab_meeting_multi_doc_v2`, tools still looked for old token keys
+
+#### Solution Pattern
+```python
+# BEFORE (problematic):
+auth_id = os.getenv("AUTH_ID", "grab_meeting_multi")
+
+# AFTER (corrected):
+auth_id = os.getenv("AUTH_ID", "grab_meeting_multi_doc_v2")
+```
+
+#### Files Requiring AUTH_ID Updates
+1. `tools/meeting_search_tools.py`
+2. `tools/meeting_brief_tool.py`
+3. `tools/meeting_details_tool.py`
+4. `tools/meetings_today_tool.py`
+5. `tools/export_tool.py`
+
+#### Prevention Strategy
+```bash
+# Always search for hardcoded AUTH_IDs before changing environments
+grep -r "auth_id.*=" tools/
+```
+
+### 5. **Meeting Details Format Standardization**
 
 #### Problem
 Meeting details output was inconsistent and didn't match the user's expected format with comprehensive document analysis and proper section headers.
@@ -309,7 +415,40 @@ def _build_comprehensive_document_table(documents: List[DriveDocument]) -> str:
 def _process_direct_meeting_attachments(drive_service, event_data, meeting_title: str) -> str:
 ```
 
-### 5. **Variable Scope Issues in Python**
+### 6. **Export Tool Sequential Workflow Issues**
+
+#### Problem
+Export agent was calling `prepare_meeting_details` followed by `export_to_google_docs_tool`, but the export tool was using cached brief content instead of fresh details content.
+
+#### Root Cause Analysis
+- **Content Isolation**: Multiple tool calls in ADK don't automatically share intermediate results
+- **State Persistence**: Tool context state doesn't persist content between different tool executions
+- **Workflow Coordination**: No mechanism to ensure proper content generation → storage → export sequence
+
+#### Solution: Export Wrapper Pattern
+```python
+# tools/export_wrapper.py
+async def export_to_google_docs_tool_wrapper(user_request: str, tool_context: ToolContext) -> Dict[str, Any]:
+    """Coordinated export workflow with fresh content generation"""
+
+    # Step 1: Detect content type from user request
+    content_type = "details" if any(kw in user_request.lower() for kw in ["detail", "comprehensive", "full"]) else "brief"
+
+    # Step 2: Generate fresh content
+    if content_type == "details":
+        content_result = await prepare_meeting_details_tool(user_request, tool_context)
+    else:
+        content_result = await prepare_meeting_brief_tool(user_request, tool_context)
+
+    # Step 3: Store content in state for export tool
+    tool_context.state['_export_content'] = content_result.get('panel_markdown', '')
+    tool_context.state['_export_content_type'] = content_type
+
+    # Step 4: Call export tool with coordinated content
+    return export_to_google_docs_tool(user_request, tool_context)
+```
+
+### 7. **Variable Scope Issues in Python**
 
 #### Problem
 `"Error searching for meeting: cannot access local variable 'docs_section' where it is not associated with a"` - Python scope error causing search tool crashes.
@@ -329,7 +468,7 @@ if 'key_challenge' not in locals():
     key_challenge = "Review agenda and prepare talking points for effective discussion."
 ```
 
-### 6. **Agent Routing Inconsistency**
+### 8. **Agent Routing Inconsistency**
 
 #### Problem
 Subject-based queries were inconsistently routed:
