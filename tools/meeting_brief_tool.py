@@ -52,7 +52,7 @@ def prepare_meeting_brief_tool(meeting_query: str = "", tool_context: ToolContex
     try:
         # Get auth_id from environment or use default
         import os
-        auth_id = os.getenv("AUTH_ID", "grab_meeting_multi_doc_v2")
+        auth_id = os.getenv("AUTH_ID", "meeting-prep-multi")
 
         # Get OAuth credentials from tool context
         if not hasattr(tool_context, "state"):

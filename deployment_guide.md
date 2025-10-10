@@ -200,7 +200,8 @@ STAGING_BUCKET=gs://your-unique-bucket-name-meeting-agent-staging
 AGENT_DISPLAY_NAME=Meeting_Prep_Agent_Multi
 
 # OAuth authorization ID (create a unique identifier)
-AUTH_ID=meeting-prep-multi-auth-v1
+# ⚠️ CRITICAL: This value must match the fallback values in all tool files!
+AUTH_ID=meeting-prep-multi
 
 # =============================================================================
 # OAuth 2.0 Credentials (from Step 2.2)
@@ -277,6 +278,36 @@ SLACK_BOT_TOKEN=
 # Slack signing secret (optional)
 SLACK_SIGNING_SECRET=
 ```
+
+## ✅ Pre-Deployment Verification
+
+**🚨 CRITICAL**: Before deploying, run these commands to prevent common issues:
+
+```bash
+# 1. Verify AUTH_ID consistency (PREVENTS #1 FAILURE CAUSE)
+echo "=== AUTH_ID Verification ==="
+echo "AUTH_ID in .env file:"
+grep "^AUTH_ID=" .env
+echo "AUTH_ID in tool files:"
+grep -r "AUTH_ID.*meeting-prep-multi" tools/ | wc -l
+echo "Expected: Should find 5 tool files with meeting-prep-multi"
+echo ""
+
+# 2. Verify environment file completeness
+echo "=== Environment File Check ==="
+echo "Required variables present:"
+grep -c "^GOOGLE_CLOUD_PROJECT=" .env && echo "✅ GOOGLE_CLOUD_PROJECT"
+grep -c "^CLIENT_ID=" .env && echo "✅ CLIENT_ID"
+grep -c "^CLIENT_SECRET=" .env && echo "✅ CLIENT_SECRET"
+grep -c "^AUTH_ID=" .env && echo "✅ AUTH_ID"
+echo ""
+
+# 3. Test syntax before deployment
+echo "=== Syntax Validation ==="
+python -c "from agents.meeting_prep_agent_multi import root_agent; print('✅ Multi-agent syntax valid')"
+```
+
+**⚠️ If any checks fail, FIX THEM BEFORE deploying to avoid deployment failures!**
 
 ## 🚀 Step 5: Deploy Multi-Agent System
 
@@ -482,12 +513,18 @@ For advanced users, you can customize:
 
 ### Common Issues and Solutions
 
-#### Issue 1: "No access token available"
-**Symptom**: Agent can't access Google APIs
+#### Issue 1: "No access token available" (MOST COMMON)
+**Symptom**: Agent says "No access token available. Please authenticate first"
+**Root Cause**: AUTH_ID mismatch between `.env` file and tool files
 **Solution**:
-1. Verify OAuth scopes in consent screen
-2. Re-authorize in AgentSpace
-3. Check AUTH_ID matches in all tool files
+1. **FIRST**: Verify `AUTH_ID=meeting-prep-multi` in your `.env` file
+2. **SECOND**: Ensure all tool files have matching AUTH_ID fallback values
+3. **Check Command**: `grep -r "meeting-prep-multi" tools/` should show all tools using this value
+4. **Never Change**: Unless you update ALL tool files, always use `meeting-prep-multi`
+5. Re-authorize in AgentSpace if needed
+6. Verify OAuth scopes in consent screen
+
+**⚠️ CRITICAL**: This is the #1 cause of deployment failures. The AUTH_ID in `.env` must exactly match the default fallback values in all files under `tools/` directory.
 
 #### Issue 2: "Agent not found in AgentSpace"
 **Symptom**: Agent doesn't appear in UI
@@ -518,6 +555,13 @@ pip install -r requirements.txt
 ### Debug Commands
 
 ```bash
+# FIRST: Verify AUTH_ID consistency (CRITICAL)
+echo "Checking AUTH_ID in .env file:"
+grep "^AUTH_ID=" .env
+echo "Checking AUTH_ID in tool files:"
+grep -r "meeting-prep-multi" tools/
+echo "Expected: All tool files should contain 'meeting-prep-multi'"
+
 # Verify environment configuration
 python -c "from config.settings import load_settings; print(load_settings().__dict__)"
 
@@ -579,6 +623,8 @@ python -c "from config.settings import load_settings; from vertexai import agent
 ---
 
 **🎯 Deployment Status**: Ready for Production
-**📅 Last Updated**: October 2, 2025
+**📅 Last Updated**: October 10, 2025
 **🏗️ Architecture**: Multi-Agent System with 5 specialized agents
 **🔧 Compatibility**: Google Cloud AgentSpace, Python 3.12+, ADK Framework
+**⚠️ CRITICAL FIX**: AUTH_ID consistency issues resolved (prevents "No access token available" errors)
+**🔑 Standard AUTH_ID**: Use `meeting-prep-multi` for all deployments

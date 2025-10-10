@@ -126,7 +126,7 @@ def search_meeting_tool(user_request: str = "", tool_context: ToolContext = None
     try:
         # Get auth_id from environment or use default
         import os
-        auth_id = os.getenv("AUTH_ID", "grab_meeting_multi_doc_v2")
+        auth_id = os.getenv("AUTH_ID", "meeting-prep-multi")
 
         # Get OAuth credentials from tool context
         if not hasattr(tool_context, "state"):
@@ -896,7 +896,7 @@ Be specific and actionable based on the meeting details provided."""
                 from google.oauth2.credentials import Credentials
                 import os
 
-                auth_id = os.getenv("AUTH_ID", "grab_meeting_multi_doc_v2")
+                auth_id = os.getenv("AUTH_ID", "meeting-prep-multi")
                 token_key = f"temp:{auth_id}"
 
                 if hasattr(tool_context.state, 'get'):
@@ -969,7 +969,7 @@ If you'd like to dig deeper, I have more details ready. Just ask for the full do
 
             # Get access to Google services
             try:
-                auth_id = os.getenv("AUTH_ID", "grab_meeting_multi_doc_v2")
+                auth_id = os.getenv("AUTH_ID", "meeting-prep-multi")
                 token_key = f"temp:{auth_id}"
 
                 if hasattr(tool_context.state, 'get'):

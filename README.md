@@ -140,7 +140,7 @@ CLIENT_SECRET=your-oauth-client-secret
 
 # Agent Configuration
 AGENT_DISPLAY_NAME=Meeting_Prep_Agent
-AUTH_ID=meeting-prep-auth
+AUTH_ID=meeting-prep-multi  # ⚠️ CRITICAL: Must match tool files!
 
 # Optional: Chat Integration
 SLACK_BOT_TOKEN=xoxb-your-slack-bot-token
@@ -150,6 +150,9 @@ SLACK_SIGNING_SECRET=your-slack-signing-secret
 GOOGLE_CHAT_ENABLED=true
 CHAT_INTEGRATION_PREFERENCE=both  # Options: "slack", "google_chat", or "both"
 ```
+
+**⚠️ CRITICAL AUTH_ID WARNING**:
+The `AUTH_ID` value in your `.env` file MUST match the default fallback values in all tool files. Current production value is `meeting-prep-multi`. If you change this value, you must also update the fallback values in all files under `tools/` directory, or you'll encounter "No access token available" errors.
 
 **⚠️ Security Note**: The `.env` file is automatically excluded from version control. See [SECURITY.md](SECURITY.md) for detailed security guidelines.
 
@@ -607,24 +610,38 @@ https://www.googleapis.com/auth/documents  # For exporting to Google Docs
    - Check calendar permissions and upcoming events
    - Verify timezone settings
 
-5. **"Error generating meeting brief: 'State' object has no attribute 'keys'"**
+5. **"No access token available" (MOST COMMON)**
+   - **Root Cause**: AUTH_ID mismatch between `.env` file and tool files
+   - **Symptom**: Agent says "No access token available. Please authenticate first"
+   - **Solution**: Verify `AUTH_ID=meeting-prep-multi` in `.env` file matches tool defaults
+   - **Quick Fix**: Check all files in `tools/` directory have correct AUTH_ID fallback
+   - **Prevention**: Always use the standard AUTH_ID value `meeting-prep-multi`
+   - **Verification**: Run `grep -r "AUTH_ID" tools/` to check consistency
+
+6. **OAuth consent errors**
+   - **Symptom**: "Access blocked: agentspace has not completed the Google verification process"
+   - **Solution**: Add your email as test user in OAuth consent screen
+   - **Required Scopes**: Ensure all required scopes are added to consent screen
+   - **Redirect URIs**: Verify `https://vertexaisearch.cloud.google.com/oauth-redirect` is added
+
+7. **"Error generating meeting brief: 'State' object has no attribute 'keys'"**
    - Fixed in latest version with defensive state access patterns
    - Redeploy with: `python agents/meeting_prep_agent_multi.py`
 
-6. **Agent not responding to specific meeting requests** (e.g., "brief for meeting 2")
+8. **Agent not responding to specific meeting requests** (e.g., "brief for meeting 2")
    - Fixed in multi-agent system with proper parameter passing
    - Use multi-agent deployment for numbered meeting selection
 
-7. **Debug output not visible in trace viewer**
+9. **Debug output not visible in trace viewer**
    - Fixed with logging configuration to suppress ALTS warnings
    - Latest version includes proper debug output
 
-8. **Export tool using wrong content type**
+10. **Export tool using wrong content type**
    - **Symptom**: Export creates "Meeting Brief Notes" even when requesting details
    - **Solution**: Fixed with export wrapper pattern (`tools/export_wrapper.py`)
    - **Verification**: Document title should show correct type and meeting name
 
-9. **Export agent workflow issues**
+11. **Export agent workflow issues**
    - **Symptom**: Multiple tool calls not sharing content properly
    - **Solution**: Updated to single `export_to_google_docs_tool_wrapper` call
    - **Result**: Automatic content generation, storage, and export coordination
@@ -784,9 +801,10 @@ Security is a top priority. Please review our [Security Guidelines](SECURITY.md)
 **📅 Last Updated**: October 2, 2025
 **🚀 Agent Resource**: `projects/777331773170/locations/us-central1/reasoningEngines/4217220828799959040`
 **🎯 Multi-Agent System**: Meeting_Prep_Agent_Multi (5 specialized agents + root coordinator)
-**🔑 Authorization**: `grab_meeting_multi_doc_v2`
+**🔑 Authorization**: `meeting-prep-multi` (Fixed AUTH_ID consistency)
 **🤖 Architecture**: Smart routing with priority-based query classification
 **🔧 Latest Enhancements**:
+- **CRITICAL FIX**: AUTH_ID consistency across all tool files (prevents "No access token available" errors)
 - Fixed export content retrieval with sequential workflow pattern
 - Enhanced agent routing with mandatory subject pattern matching
 - Comprehensive error handling and defensive state access

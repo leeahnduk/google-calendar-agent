@@ -274,7 +274,7 @@ Format your response in clear markdown sections. Be specific and actionable in y
     try:
         # Get environment variables directly
         import os
-        auth_id = os.getenv("AUTH_ID", "grab_meeting_multi_doc_v2")
+        auth_id = os.getenv("AUTH_ID", "meeting-prep-multi")
         google_cloud_project = os.getenv("GOOGLE_CLOUD_PROJECT", "")
         google_cloud_location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
 

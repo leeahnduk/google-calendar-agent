@@ -18,7 +18,7 @@ def export_to_google_docs_tool(tool_context: ToolContext):
     try:
         # Get auth_id from environment or use default
         import os
-        auth_id = os.getenv("AUTH_ID", "grab_meeting_multi_doc_v2")
+        auth_id = os.getenv("AUTH_ID", "meeting-prep-multi")
 
         # Get OAuth credentials from tool context
         if not hasattr(tool_context, "state"):
