@@ -191,10 +191,10 @@ Format your response in clear markdown sections. Be specific and actionable in y
     def _build_comprehensive_document_table(documents: List[DriveDocument]) -> str:
         """Build a comprehensive table of relevant documents and resources"""
         if not documents:
-            return "## 📋 Relevant Documents & Resources\\n\\nNo relevant documents found for this meeting."
+            return "## 📋 Relevant Documents & Resources\n\nNo relevant documents found for this meeting."
 
         # Create a detailed, comprehensive format
-        content = "## 📋 Relevant Documents & Resources\\n\\n"
+        content = "## 📋 Relevant Documents & Resources\n\n"
 
         for i, doc in enumerate(documents[:15], 1):  # Show top 15 most relevant documents
             # Format document name (truncate if too long)
@@ -258,16 +258,16 @@ Format your response in clear markdown sections. Be specific and actionable in y
                     size_display = doc.size
 
             # Create comprehensive document entry
-            content += f"### {i}. [{doc_name}]({doc.link})\\n"
-            content += f"**Type:** {file_type} | **Source:** {source_emoji} | **Relevance:** {relevance_stars} {relevance_text}\\n"
-            content += f"**Modified:** {last_modified} | **Size:** {size_display} | **Owner:** {doc.owner}\\n"
+            content += f"### {i}. [{doc_name}]({doc.link})\n"
+            content += f"**Type:** {file_type} | **Source:** {source_emoji} | **Relevance:** {relevance_stars} {relevance_text}\n"
+            content += f"**Modified:** {last_modified} | **Size:** {size_display} | **Owner:** {doc.owner}\n"
 
             # Add content preview for detailed analysis
             if doc.content and len(doc.content) > 50 and "Error accessing" not in doc.content:
                 preview = doc.content[:300] + "..." if len(doc.content) > 300 else doc.content
-                content += f"**Content Preview:** {preview}\\n\\n"
+                content += f"**Content Preview:** {preview}\n\n"
             else:
-                content += "\\n"
+                content += "\n"
 
         return content
 
@@ -350,7 +350,7 @@ Format your response in clear markdown sections. Be specific and actionable in y
         )
         items = events_result.get("items", [])
         if not items:
-            return {"panel_markdown": "## 📅 Calendar Overview\\n\\nNo upcoming meetings found in your calendar for the next 7 days."}
+            return {"panel_markdown": "## 📅 Calendar Overview\n\nNo upcoming meetings found in your calendar for the next 7 days."}
 
         # Check for numbered meeting selection
         target_event_item = items[0]  # Default to first meeting
@@ -368,7 +368,7 @@ Format your response in clear markdown sections. Be specific and actionable in y
                 if selected_meeting_data:
                     print(f"DEBUG: Using meeting selected by search tool: {selected_meeting_data.get('summary', '')}")
                     target_event_item = selected_meeting_data
-                    selection_note = "\\n> 🔍 **Selected Meeting**: Using meeting found by search.\\n"
+                    selection_note = "\n> 🔍 **Selected Meeting**: Using meeting found by search.\n"
                 else:
                     print("DEBUG: No pre-selected meeting found, using default logic")
             except Exception as e:
@@ -442,16 +442,16 @@ Format your response in clear markdown sections. Be specific and actionable in y
                             status = selected_meeting_data.get('status', 'unknown')
                             status_emoji = {"past": "✅", "current": "🟢", "upcoming": "🟡"}.get(status, "❓")
                             time_display = selected_meeting_data.get('start_time_display', 'Unknown time')
-                            selection_note = f"\\n> 🔢 **Detailed Analysis for Meeting #{meeting_number}**: {status_emoji} {target_event_item.get('summary', '')} at {time_display}.\\n"
+                            selection_note = f"\n> 🔢 **Detailed Analysis for Meeting #{meeting_number}**: {status_emoji} {target_event_item.get('summary', '')} at {time_display}.\n"
                             print(f"DEBUG: Found meeting #{meeting_number} from saved index: {target_event_item.get('summary', '')}")
                             break
                     else:
-                        selection_note = f"\\n> ⚠️ **Note**: Meeting #{meeting_number} found in index but not in current calendar results. Showing first meeting instead.\\n"
+                        selection_note = f"\n> ⚠️ **Note**: Meeting #{meeting_number} found in index but not in current calendar results. Showing first meeting instead.\n"
                 else:
-                    selection_note = f"\\n> ⚠️ **Note**: Meeting #{meeting_number} not found in saved index. Showing first meeting instead.\\n"
+                    selection_note = f"\n> ⚠️ **Note**: Meeting #{meeting_number} not found in saved index. Showing first meeting instead.\n"
             else:
                 # Fallback: No saved index available, inform user to run meetings list first
-                selection_note = f"\\n> 💡 **Tip**: To use numbered meeting selection, first ask 'how many meetings do I have left today?' to generate the meeting index.\\n"
+                selection_note = f"\n> 💡 **Tip**: To use numbered meeting selection, first ask 'how many meetings do I have left today?' to generate the meeting index.\n"
         event_id = target_event_item["id"]
         ev = calendar_service.events().get(calendarId="primary", eventId=event_id).execute()
 
@@ -487,11 +487,11 @@ Format your response in clear markdown sections. Be specific and actionable in y
                 keywords = []
                 if meeting_title:
                     # Split title into meaningful words
-                    title_words = re.findall(r'\\b\\w+\\b', meeting_title.lower())
+                    title_words = re.findall(r'\b\w+\b', meeting_title.lower())
                     keywords.extend([word for word in title_words if len(word) > 3])
 
                 if description:
-                    desc_words = re.findall(r'\\b\\w+\\b', description.lower())
+                    desc_words = re.findall(r'\b\w+\b', description.lower())
                     keywords.extend([word for word in desc_words if len(word) > 3])
 
                 # Remove common words and duplicates
@@ -566,7 +566,7 @@ Format your response in clear markdown sections. Be specific and actionable in y
             try:
                 # Extract keywords from meeting context
                 meeting_text = f"{meeting_title} {meeting_description}".lower()
-                meeting_words = set(re.findall(r'\\b\\w+\\b', meeting_text))
+                meeting_words = set(re.findall(r'\b\w+\b', meeting_text))
 
                 # Remove common words
                 common_words = {'meeting', 'call', 'sync', 'review', 'discussion', 'update', 'status', 'weekly', 'daily', 'monthly', 'team', 'project', 'with', 'for', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'from', 'by', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'up', 'down', 'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once'}
@@ -577,13 +577,13 @@ Format your response in clear markdown sections. Be specific and actionable in y
                     score = 0.0
 
                     # Title matching
-                    doc_title_words = set(re.findall(r'\\b\\w+\\b', doc.name.lower()))
+                    doc_title_words = set(re.findall(r'\b\w+\b', doc.name.lower()))
                     title_overlap = len(meeting_words.intersection(doc_title_words))
                     score += title_overlap * 2.0  # Higher weight for title matches
 
                     # Content matching (if available)
                     if doc.content:
-                        doc_content_words = set(re.findall(r'\\b\\w+\\b', doc.content.lower()))
+                        doc_content_words = set(re.findall(r'\b\w+\b', doc.content.lower()))
                         content_overlap = len(meeting_words.intersection(doc_content_words))
                         score += content_overlap * 1.0
 
@@ -654,7 +654,7 @@ Format your response in clear markdown sections. Be specific and actionable in y
         # Format attendees with detailed status
         attendees_section = ""
         if event_context.attendees:
-            attendees_section = "**👥 Attendees:**\\n"
+            attendees_section = "**👥 Attendees:**\n"
             for att in event_context.attendees:
                 status_emoji = {
                     "accepted": "✅",
@@ -662,9 +662,9 @@ Format your response in clear markdown sections. Be specific and actionable in y
                     "tentative": "❓",
                     "needsAction": "⏳"
                 }.get(att.response_status, "❔")
-                attendees_section += f"- {att.email} {status_emoji} ({att.response_status or 'No response'})\\n"
+                attendees_section += f"- {att.email} {status_emoji} ({att.response_status or 'No response'})\n"
         else:
-            attendees_section = "**👥 Attendees:** No attendees listed\\n"
+            attendees_section = "**👥 Attendees:** No attendees listed\n"
 
         # Format detailed time information in Singapore timezone
         try:
@@ -807,7 +807,7 @@ Format your response in clear markdown sections. Be specific and actionable in y
                     overview_sections.append(f"**📊 This Week Summary:** {total_week_meetings} total meetings")
 
                 if overview_sections:
-                    return "\\n".join(overview_sections)
+                    return "\n".join(overview_sections)
                 else:
                     return ""
 
@@ -869,16 +869,16 @@ Keep the response concise but informative, formatted in markdown."""
         attachments_section = ""
         direct_attachments = [doc for doc in all_documents if doc.source == "attachment"]
         if direct_attachments:
-            attachments_section = "\\n## 📎 Direct Meeting Attachments\\n\\n"
+            attachments_section = "\n## 📎 Direct Meeting Attachments\n\n"
             for i, doc in enumerate(direct_attachments, 1):
-                attachments_section += f"### {i}. {doc.name}\\n"
-                attachments_section += f"**Type:** {doc.mime_type}\\n"
+                attachments_section += f"### {i}. {doc.name}\n"
+                attachments_section += f"**Type:** {doc.mime_type}\n"
                 if doc.content and doc.content != "Content could not be extracted" and "Error accessing" not in doc.content:
                     # Show first few lines of content
                     content_preview = doc.content[:200] + "..." if len(doc.content) > 200 else doc.content
-                    attachments_section += f"**Preview:** {content_preview}\\n\\n"
+                    attachments_section += f"**Preview:** {content_preview}\n\n"
                 else:
-                    attachments_section += "\\n"
+                    attachments_section += "\n"
 
         # Chat context sections (matching original format)
         slack_context = """**📱 Slack Context**
