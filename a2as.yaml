@@ -1,0 +1,576 @@
+manifest:
+  version: "0.1.3"
+  schema: https://a2as.org/cert/schema
+  subject:
+    name: leeahnduk/google-calendar-agent
+    source: https://github.com/leeahnduk/google-calendar-agent
+    branch: main
+    commit: "e7ab6570"
+    scope: [adk_agents/agent.py, adk_agents/agent_simple.py, adk_agents/agent_with_real_data.py, adk_agents/meeting_prep_agent/agent.py,
+      agents/delivery.py, agents/meeting_prep_agent.py, agents/meeting_prep_agent_dev_ui_support.py, agents/trigger.py, config/settings.py,
+      tools/attachment_ingest.py, tools/drive_search.py, tools/slack_fetcher.py]
+  issued:
+    by: A2AS.org
+    at: '2026-02-11T16:56:39Z'
+    url: https://a2as.org/certified/agents/leeahnduk/google-calendar-agent
+  signatures:
+    digest: sha256:vHeZXorP3vf15JDoVNqK2Xd3zcAcHJjleRAAeYdPFHU
+    key: ed25519:HF0YOsrxGN0fsrVHHT2ysD8RMIDE4BuL9OK2hA7kjBE
+    sig: ed25519:UmFEsRPhkVWyDPkuBNBftDkkzgm6XdOPzj4EWRQH6Gmco1zg1wsjknyh8Q1vc1sH84-HaFvK0ekJgUc_IQQ1AQ
+
+agents:
+  prepare_brief.0:
+    type: instance
+    models: [settings.sub_agent_model]
+    tools: [prepare_meeting_brief]
+    params:
+      name: prepare_brief
+      description: Gathers Calendar/Drive/Slack context and prepares a concise meeting brief.
+      instruction: [You specialize in preparing meeting briefs. Always use the provided tool to gather, and compose the brief.
+          Do not greet. Keep the output concise and actionable., 'The timezone is {_tz}', 'The current datetime is {_time}',
+        'The user''s email is {_user_email}', 'The user''s timezone is {_user_tz}']
+      before_agent_callback: prereq_setup
+      instance: prepare_brief
+  prepare_brief.1:
+    type: instance
+    models: [settings.sub_agent_model]
+    tools: [prepare_meeting_brief]
+    params:
+      name: prepare_brief
+      description: Gathers Calendar/Drive/Slack context and prepares a concise meeting brief.
+      instruction: [You specialize in preparing meeting briefs. Always use the provided tool to gather, and compose the brief.
+          Do not greet. Keep the output concise and actionable., 'The timezone is {_tz}', 'The current datetime is {_time}',
+        'The user''s email is {_user_email}', 'The user''s timezone is {_user_tz}']
+      before_agent_callback: prereq_setup
+      instance: prepare_brief
+  prepare_brief.2:
+    type: instance
+    models: [settings.sub_agent_model]
+    tools: [prepare_meeting_brief]
+    params:
+      name: prepare_brief
+      description: Gathers Calendar/Drive/Slack context and prepares a concise meeting brief.
+      instruction: [You specialize in preparing meeting briefs. Always use the provided tool to gather, and compose the brief.
+          Do not greet. Keep the output concise and actionable.]
+      before_agent_callback: prereq_setup
+      instance: prepare_brief
+  prepare_brief.3:
+    type: instance
+    models: [settings.sub_agent_model]
+    tools: [prepare_meeting_brief_real]
+    params:
+      name: prepare_brief
+      description: Gathers real Calendar data and prepares a meeting brief using live OAuth authentication.
+      instruction: [You specialize in preparing meeting briefs using real data from Google Calendar., Always use the provided
+          tool to gather and compose the brief. Do not greet., Keep the output concise and actionable., 'The timezone is {_tz}',
+        'The current datetime is {_time}', 'The user''s email is {_user_email}', 'The user''s timezone is {_user_tz}']
+      before_agent_callback: prereq_setup
+      instance: prepare_brief
+  prepare_brief.4:
+    type: instance
+    models: [settings.sub_agent_model]
+    tools: [prepare_meeting_brief]
+    params:
+      name: prepare_brief
+      description: Gathers Calendar/Drive/Slack context and prepares a concise meeting brief.
+      instruction: [You specialize in preparing meeting briefs. Always use the provided tool to gather, and compose the brief.
+          Do not greet. Keep the output concise and actionable., 'The timezone is {_tz}', 'The current datetime is {_time}',
+        'The user''s email is {_user_email}', 'The user''s timezone is {_user_tz}']
+      before_agent_callback: prereq_setup
+      instance: prepare_brief
+  prepare_brief.5:
+    type: instance
+    models: [settings.sub_agent_model]
+    tools: [prepare_meeting_brief]
+    params:
+      name: prepare_brief
+      description: Gathers Calendar/Drive/Slack context and prepares a concise meeting brief.
+      instruction: [You specialize in preparing meeting briefs. Always use the provided tool to gather, and compose the brief.
+          Do not greet. Keep the output concise and actionable., 'The timezone is {_tz}', 'The current datetime is {_time}',
+        'The user''s email is {_user_email}', 'The user''s timezone is {_user_tz}']
+      before_agent_callback: prereq_setup
+      instance: prepare_brief
+  root_agent.0:
+    type: instance
+    models: [settings.root_agent_model]
+    params:
+      name: root_agent
+      instruction: [You are a helpful meeting preparation assistant that helps users get ready for their upcoming meetings.,
+        Welcome the user to the Meeting Prep Assistant and let them know you're ready to help., 'If the user asks to prepare
+          a meeting brief, prepare for a meeting, or get meeting preparation materials,', always use the "prepare_brief" sub-agent
+          to gather and compose the brief., 'You can help with:', '- Generating meeting briefs for upcoming meetings', '-
+          Gathering relevant documents and context', '- Summarizing previous meeting notes and discussions', '- Finding related
+          Slack conversations', Never greet the user again if you already did previously.]
+      sub_agents: [prepare_brief]
+      instance: root_agent
+  root_agent.1:
+    type: instance
+    models: [settings.root_agent_model]
+    tools: [auth_user]
+    params:
+      name: root_agent
+      instruction: [You are a helpful meeting preparation assistant that helps users get ready for their upcoming meetings.,
+        'Greet the user by welcoming them to the Meeting Prep Assistant, let them know you''ll need to', authenticate to begin
+          and authenticate the user using auth_user., 'If the user asks to prepare a meeting brief, prepare for a meeting,
+          or get meeting preparation materials,', always use the "prepare_brief" sub-agent to gather and compose the brief.,
+        'You can help with:', '- Generating meeting briefs for upcoming meetings', '- Gathering relevant documents and context',
+        '- Summarizing previous meeting notes and discussions', '- Finding related Slack conversations', Never greet the user
+          again if you already did previously.]
+      instance: root_agent
+      sub_agents: [prepare_brief]
+  root_agent.2:
+    type: instance
+    models: [settings.root_agent_model]
+    params:
+      name: root_agent
+      instruction: [You are a comprehensive meeting preparation and calendar management assistant. You help users with a wide
+          range of calendar and meeting-related tasks., '**Core Capabilities:**', '- **Meeting Preparation**: Generate detailed
+          briefs with attachments, chat context, and AI insights', '- **Calendar Management**: Show upcoming meetings, schedule
+          analysis, and time management', '- **Meeting Discovery**: Find specific meetings by date, attendee, or topic', '-
+          **Document Analysis**: Analyze meeting attachments and related documents', '- **Chat Integration**: Search Google
+          Chat and Slack conversations for meeting context', '- **Schedule Insights**: Provide patterns, conflicts, and optimization
+          suggestions', '**For ANY calendar or meeting question**, always use the "prepare_brief" sub-agent to get comprehensive
+          calendar data, then provide the specific information requested.', '**Types of questions to handle with prepare_brief
+          tool:**', '- Today''s/tomorrow''s schedule', '- Weekly meeting overview', '- Meeting patterns and analysis', '-
+          Schedule conflicts and busy periods', '- Meeting attendee information', '- Document and attachment summaries', '-
+          Time management suggestions', '**Example responses for common questions:**', '*"What meetings do I have today?"*',
+        → ALWAYS use prepare_brief tool and extract today's meetings from the calendar context, '*"How many meetings do I
+          have today?"*', → ALWAYS use prepare_brief tool and count today's meetings, '*"Show my schedule this week"*', →
+          ALWAYS use prepare_brief tool and provide a week overview based on calendar data, '*"What''s my next meeting about?"*',
+        → ALWAYS use prepare_brief tool to get details about the upcoming meeting, '*"Find meetings with [person]"*', → ALWAYS
+          use prepare_brief tool and analyze attendee information, '*"Do I have any conflicts tomorrow?"*', → ALWAYS use prepare_brief
+          tool and analyze the schedule for conflicts, '**Always be proactive**: If someone asks a simple calendar question,
+          offer to prepare a meeting brief or provide additional helpful context.', 'Never greet the user again if you already
+          did previously. Always provide actionable, specific information.']
+      instance: root_agent
+      sub_agents: [prepare_brief]
+  root_agent.3:
+    type: instance
+    models: [settings.root_agent_model]
+    params:
+      name: root_agent
+      instruction: [You are a Meeting Prep Assistant that helps users prepare for meetings using real data from their Google
+          Calendar and Drive., 'Welcome the user and explain that you can help them prepare for meetings by:', '- Finding
+          their upcoming calendar events', '- Showing meeting details, attendees, and descriptions', '- Compiling everything
+          into a comprehensive brief', 'When they ask to prepare a meeting brief, use the "prepare_brief" sub-agent to access
+          their real calendar data.', 'Note: This will require OAuth authentication to access their Google services.', Never
+          greet the user again if you already did previously.]
+      instance: root_agent
+      sub_agents: [prepare_brief]
+  root_agent.4:
+    type: instance
+    models: [settings.root_agent_model]
+    tools: [auth_user]
+    params:
+      name: root_agent
+      instruction: [You are a helpful meeting preparation assistant that helps users get ready for their upcoming meetings.,
+        'Greet the user by welcoming them to the Meeting Prep Assistant, let them know you''ll need to', authenticate to begin
+          and authenticate the user using auth_user., 'If the user asks to prepare a meeting brief, prepare for a meeting,
+          or get meeting preparation materials,', always use the "prepare_brief" sub-agent to gather and compose the brief.,
+        'You can help with:', '- Generating meeting briefs for upcoming meetings', '- Gathering relevant documents and context',
+        '- Summarizing previous meeting notes and discussions', '- Finding related Slack conversations', Never greet the user
+          again if you already did previously.]
+      instance: root_agent
+      sub_agents: [prepare_brief]
+  root_agent.5:
+    type: instance
+    models: [settings.root_agent_model]
+    tools: [auth_user]
+    params:
+      name: root_agent
+      instruction: [You are a helpful meeting preparation assistant that helps users get ready for their upcoming meetings.,
+        'Greet the user by welcoming them to the Meeting Prep Assistant, let them know you''ll need to', authenticate to begin
+          and authenticate the user using auth_user., 'If the user asks to prepare a meeting brief, prepare for a meeting,
+          or get meeting preparation materials,', always use the "prepare_brief" sub-agent to gather and compose the brief.,
+        'You can help with:', '- Generating meeting briefs for upcoming meetings', '- Gathering relevant documents and context',
+        '- Summarizing previous meeting notes and discussions', '- Finding related Slack conversations', Never greet the user
+          again if you already did previously.]
+      instance: root_agent
+      sub_agents: [prepare_brief]
+
+models:
+  settings.root_agent_model:
+    type: literal
+    agents: [root_agent.0, root_agent.1, root_agent.2, root_agent.3, root_agent.4, root_agent.5]
+  settings.sub_agent_model:
+    type: literal
+    agents: [prepare_brief.0, prepare_brief.1, prepare_brief.2, prepare_brief.3, prepare_brief.4, prepare_brief.5]
+
+tools:
+  auth_user:
+    type: function
+    agents: [root_agent.1, root_agent.4, root_agent.5]
+  prepare_meeting_brief:
+    type: function
+    agents: [prepare_brief.0, prepare_brief.1, prepare_brief.2, prepare_brief.4, prepare_brief.5]
+    params:
+      description: Simplified meeting brief tool for testing
+  prepare_meeting_brief_real:
+    type: function
+    agents: [prepare_brief.3]
+    params:
+      description: Prepare a real meeting brief using actual calendar data
+
+teams:
+  root_agent:
+    type: hierarchy
+    agents: [root_agent, prepare_brief]
+  root_agent.1:
+    type: hierarchy
+    agents: [root_agent.1, prepare_brief]
+  root_agent.2:
+    type: hierarchy
+    agents: [root_agent.2, prepare_brief]
+  root_agent.3:
+    type: hierarchy
+    agents: [root_agent.3, prepare_brief]
+  root_agent.4:
+    type: hierarchy
+    agents: [root_agent.4, prepare_brief]
+  root_agent.5:
+    type: hierarchy
+    agents: [root_agent.5, prepare_brief]
+
+imports:
+  agent: agent_with_real_data.agent
+  agent_engines: vertexai.agent_engines
+  annotations: __future__.annotations
+  Any: typing.Any
+  AuthConfig: google.adk.auth.AuthConfig
+  AuthCredential: google.adk.auth.AuthCredential
+  AuthCredentialTypes: google.adk.auth.AuthCredentialTypes
+  BaseAgent: google.adk.agents.BaseAgent
+  build: googleapiclient.discovery.build
+  build_panel_markdown: agents.delivery.build_panel_markdown
+  calendar_tool_set: google.adk.tools.google_api_tool.calendar_tool_set
+  CallbackContext: google.adk.agents.callback_context.CallbackContext
+  Credentials: google.oauth2.credentials.Credentials
+  dataclass: dataclasses.dataclass
+  datetime: datetime.datetime
+  Dict: typing.Dict
+  DocumentReference: tools.drive_search.DocumentReference
+  EventContext: tools.calendar_fetcher.EventContext
+  fetch_slack_messages: tools.slack_fetcher.fetch_slack_messages
+  GenerativeModel: vertexai.generative_models.GenerativeModel
+  get_google_creds_from_tool_context: agents.oauth_util.get_google_creds_from_tool_context
+  get_next_event: tools.calendar_fetcher.get_next_event
+  HttpError: googleapiclient.errors.HttpError
+  ingest_event_attachments: tools.attachment_ingest.ingest_event_attachments
+  json: json
+  List: typing.List
+  LlmAgent: google.adk.agents.LlmAgent
+  load_dotenv: dotenv.load_dotenv
+  load_settings: config.settings.load_settings
+  OAuth2: fastapi.openapi.models.OAuth2
+  OAuth2Auth: google.adk.auth.OAuth2Auth
+  OAuthFlowAuthorizationCode: fastapi.openapi.models.OAuthFlowAuthorizationCode
+  OAuthFlows: fastapi.openapi.models.OAuthFlows
+  on_demand_next_event: agents.trigger.on_demand_next_event
+  Optional: typing.Optional
+  os: os
+  path: os.path
+  re: re
+  reasoning_engines: vertexai.preview.reasoning_engines
+  render_brief_markdown: agents.synthesis.render_brief_markdown
+  Request: google.auth.transport.requests.Request
+  search_drive: tools.drive_search.search_drive
+  should_generate: agents.scheduler.should_generate
+  SlackApiError: slack_sdk.errors.SlackApiError
+  SlackMessage: tools.slack_fetcher.SlackMessage
+  sys: sys
+  time: time
+  timedelta: datetime.timedelta
+  timezone: datetime.timezone
+  ToolContext: google.adk.tools.tool_context.ToolContext
+  Tuple: typing.Tuple
+  vertexai: vertexai
+  WebClient: slack_sdk.WebClient
+
+functions:
+  _analyze_attachments_with_gemini:
+    type: sync
+    module: agents.meeting_prep_agent
+    args: [attachments, meeting_title]
+    params:
+      returns: str
+  _build_calendar_overview:
+    type: sync
+    module: agents.meeting_prep_agent
+    args: [all_events, current_time]
+    params:
+      returns: str
+  _build_comprehensive_document_table:
+    type: sync
+    module: agents.meeting_prep_agent
+    args: [documents]
+    params:
+      returns: str
+  _calculate_document_relevance:
+    type: sync
+    module: agents.meeting_prep_agent
+    args: [docs, meeting_title, meeting_description, attendee_emails]
+    params:
+      returns: List[DriveDocument]
+  _ensure_folder:
+    type: sync
+    module: tools.attachment_ingest
+    args: [service, name, parent_id]
+    params:
+      returns: Optional[str]
+  _extract_drive_file_ids:
+    type: sync
+    module: agents.meeting_prep_agent
+    args: [event_data]
+    params:
+      returns: List[str]
+  _fetch_google_chat_messages:
+    type: sync
+    module: agents.meeting_prep_agent
+  _get_chat_context:
+    type: sync
+    module: agents.meeting_prep_agent
+    args: [meeting_title, attendee_emails, creds]
+    params:
+      returns: str
+  _get_drive_document_content:
+    type: sync
+    module: agents.meeting_prep_agent
+    args: [drive_service, file_id]
+    params:
+      returns: DriveDocument
+  _get_env:
+    type: sync
+    module: agents.meeting_prep_agent
+    args: [name, default]
+    params:
+      returns: str
+  _get_historical_context:
+    type: sync
+    module: agents.meeting_prep_agent
+    args: [calendar_service, event_context]
+    params:
+      returns: str
+  _parse_drive_id_from_url:
+    type: sync
+    module: tools.attachment_ingest
+    args: [url]
+    params:
+      returns: Optional[str]
+  _research_with_gemini:
+    type: sync
+    module: agents.meeting_prep_agent
+    args: [meeting_title, description, attendees]
+    params:
+      returns: str
+  _search_gmail_attachments:
+    type: sync
+    module: agents.meeting_prep_agent
+    args: [gmail_service, meeting_title, attendee_emails, description]
+    params:
+      returns: List[DriveDocument]
+  _search_related_drive_documents:
+    type: sync
+    module: agents.meeting_prep_agent
+    args: [drive_service, meeting_title, attendee_emails, description]
+    params:
+      returns: List[DriveDocument]
+  _to_iso:
+    type: sync
+    module: agents.meeting_prep_agent
+    args: [dt_str]
+    params:
+      returns: str
+  auth_user:
+    type: sync
+    module: adk_agents.meeting_prep_agent.agent
+    args: [tool_context]
+  build_panel_markdown:
+    type: sync
+    module: agents.delivery
+    args: [event, key_docs, slack_msgs, historical]
+    params:
+      returns: str
+  current_datetime:
+    type: sync
+    module: adk_agents.meeting_prep_agent.agent
+    args: [callback_context]
+  deploy_agent_engine_app:
+    type: sync
+    module: agents.meeting_prep_agent
+  extract_attachments_from_payload:
+    type: sync
+    module: agents.meeting_prep_agent
+    args: [payload]
+  fetch_slack_messages:
+    type: sync
+    module: tools.slack_fetcher
+    args: [title, lookback_days, max_messages]
+    params:
+      returns: List[SlackMessage]
+  get_google_creds_from_tool_context:
+    type: sync
+    module: agents.oauth_util
+    args: [tool_context, auth_id]
+    params:
+      returns: Credentials
+  get_next_event:
+    type: sync
+    module: tools.calendar_fetcher
+    args: [tool_context]
+    params:
+      returns: Optional[EventContext]
+  get_upcoming_meetings:
+    type: sync
+    module: adk_agents.agent_with_real_data
+    args: [tool_context]
+  ingest_event_attachments:
+    type: sync
+    module: tools.attachment_ingest
+    args: [tool_context, event, parent_root]
+    params:
+      returns: List[DocumentReference]
+  load_settings:
+    type: sync
+    module: config.settings
+    params:
+      returns: Settings
+  next_check_after:
+    type: sync
+    module: agents.scheduler
+    args: [event_start_iso, lead_minutes, now]
+    params:
+      returns: datetime
+  on_demand_next_event:
+    type: sync
+    module: agents.trigger
+    args: [tool_context]
+    params:
+      returns: Optional[EventContext]
+  parse_iso:
+    type: sync
+    module: agents.scheduler
+    args: [dt]
+    params:
+      returns: datetime
+  prepare_meeting_brief:
+    type: sync
+    module: adk_agents.meeting_prep_agent.agent
+    args: [tool_context]
+  prepare_meeting_brief_real:
+    type: sync
+    module: adk_agents.agent_with_real_data
+    args: [tool_context]
+  prereq_setup:
+    type: sync
+    module: adk_agents.meeting_prep_agent.agent
+    args: [callback_context]
+  render_brief_markdown:
+    type: sync
+    module: agents.synthesis
+    args: [event, key_docs, slack_summary, historical, action_items, disclaimers]
+    params:
+      returns: str
+  search_drive:
+    type: sync
+    module: tools.drive_search
+    args: [tool_context, query_terms, page_size]
+    params:
+      returns: List[DocumentReference]
+  setup_defaults:
+    type: sync
+    module: adk_agents.agent_simple
+    args: [callback_context]
+  should_generate:
+    type: sync
+    module: agents.scheduler
+    args: [event_start_iso, lead_minutes, now]
+    params:
+      returns: bool
+  should_prepare_now:
+    type: sync
+    module: agents.trigger
+    args: [tool_context]
+    params:
+      returns: bool
+  summarize_slack_for_brief:
+    type: sync
+    module: agents.delivery
+    args: [messages]
+    params:
+      returns: str
+  whoami:
+    type: sync
+    module: adk_agents.meeting_prep_agent.agent
+    args: [callback_context]
+
+variables:
+  CLIENT_ID:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [adk_agents.agent, adk_agents.agent_with_real_data, agents.meeting_prep_agent_dev_ui_support, adk_agents.meeting_prep_agent.agent]
+  CLIENT_SECRET:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [adk_agents.agent, adk_agents.agent_with_real_data, agents.meeting_prep_agent_dev_ui_support, adk_agents.meeting_prep_agent.agent]
+  GOOGLE_CLOUD_LOCATION:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [adk_agents.agent_simple, adk_agents.agent, adk_agents.agent_with_real_data, agents.meeting_prep_agent_dev_ui_support,
+        adk_agents.meeting_prep_agent.agent]
+  GOOGLE_CLOUD_PROJECT:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [adk_agents.agent_simple, adk_agents.agent, adk_agents.agent_with_real_data, agents.meeting_prep_agent_dev_ui_support,
+        adk_agents.meeting_prep_agent.agent]
+  name:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [config.settings, agents.meeting_prep_agent]
+  STAGING_BUCKET:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [adk_agents.agent_simple, adk_agents.agent, adk_agents.agent_with_real_data, agents.meeting_prep_agent_dev_ui_support,
+        adk_agents.meeting_prep_agent.agent]
+
+files:
+  "..":
+    type: pattern
+    actions: [read]
+    params:
+      caller: [os.path.join]
+      pattern: [os.path.dirname(), "..", ".."]
+
+networks:
+  accounts.google.com:
+    type: api
+    actions: [GET]
+    urls: [/o/oauth2/auth]
+    protocols: [https]
+    ports: ["443"]
+    params:
+      caller: [auth_user]
+      links: [authorizationUrl]
+  mail.google.com:
+    type: api
+    actions: [GET]
+    urls: ['/{...}']
+    protocols: [https]
+    ports: ["443"]
+    params:
+      pattern: https://mail.google.com/mail/u/0/#inbox/{message[id]}
+      caller: [_search_gmail_attachments]
+  oauth2.googleapis.com:
+    type: api
+    actions: [GET]
+    urls: [/token]
+    protocols: [https]
+    ports: ["443"]
+    params:
+      caller: [auth_user]
+      links: [tokenUrl]
